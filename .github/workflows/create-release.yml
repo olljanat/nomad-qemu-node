@@ -1,0 +1,77 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'
+        default: 'v20260101-01'
+        required: true
+      nomad_version:
+        description: 'HashiCorp Nomad version'
+        default: '1.11.1-1'
+        required: true
+      qemu_version:
+        description: 'QEMU version'
+        default: '1:8.2.2+ds-0ubuntu1.11'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+    permissions:
+      contents: write
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dosfstools mtools squashfs-tools xorriso
+    - name: Log in to GitHub Container Registry
+      run: |
+        if [[ -z "$GHCR_TOKEN" ]]; then
+          export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+        fi
+        echo "${GHCR_TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+    - name: Build
+      run: |
+        git tag ${{ github.event.inputs.version }}
+        git checkout tags/${{ github.event.inputs.version }}
+        export VERSION=${{ github.event.inputs.version }}
+
+        docker build . \
+          --build-arg NOMAD_VERSION=${{ github.event.inputs.nomad_version }} \
+          --build-arg QEMU_VERSION=${{ github.event.inputs.qemu_version }} \
+          --build-arg VERSION=${{ github.event.inputs.version }} \
+          -t ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}
+        docker tag ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }} ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
+        docker push ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}
+        docker push ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
+
+        docker create --name export ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
+        mkdir rootfs
+        docker export export | tar -x -C rootfs
+        docker rm export
+        sudo ./elemental --debug build-iso --bootloader-in-rootfs --extra-cmdline "" dir:rootfs
+        sudo mv elemental.iso nomad-qemu-node.iso
+
+        git push origin ${{ github.event.inputs.version }}
+        echo "# Release ${{ github.event.inputs.version }}" > release.md
+        echo "The release contains the following components:" >> release.md
+        echo "* [Ubuntu 24.04 LTS](https://ubuntu.com)" >> release.md
+        echo "* [HashiCorp Nomad ${{ github.event.inputs.nomad_version }}](https://developer.hashicorp.com/nomad)" >> release.md
+        echo "* [QEMU ${{ github.event.inputs.qemu_version }}](https://www.qemu.org)" >> release.md
+        echo "* [QEMU wrapper script](https://github.com/${{ github.repository_owner }}/nomad-qemu-node/blob/${{ github.event.inputs.version }}/scripts/qemu-system-custom)" >> release.md
+        echo "" >> release.md
+        echo "Upgrade image is available at \`ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}\`" >> release.md
+
+    - name: Create release
+      uses: softprops/action-gh-release@v2
+      with:
+        make_latest: true
+        body_path: release.md
+        files: nomad-qemu-node.iso
+        tag_name: ${{ github.event.inputs.version }}

@@ -1,0 +1,8 @@
+install:
+  grub-entry-name: Nomad QEMU node
+  partitions:
+    state:
+      size: 20480
+
+upgrade:
+  system: oci:ghcr.io/olljanat/nomad-qemu-node:latest
