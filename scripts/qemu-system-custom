@@ -1,0 +1,223 @@
+#!/bin/bash
+set -euo pipefail
+
+# Wrapper script for "qemu-system-x86_64" which will automatically:
+# * Create TAP interface with unique MAC address.
+# * Connect TAP interface to VLAN and make sure that "bond0" has access to it too.
+# * Mount "config-drive" to VM if provided.
+# * Configure QEMU listening VNC in Unix socket.
+# * Download image from URL and create linked clone for each VM.
+
+EXTRA_ARGS=()
+IMAGE_URL=""
+VLAN=""
+
+# Functions
+cleanup() {
+  status=$?
+  echo "qemu-system-custom: Cleanup process called with status: $status" >&2
+  if ps -p "$child" > /dev/null; then
+    echo "qemu-system-custom: Sending SIGINT to PID $child (qemu-system-x86_64)" >&2
+    kill -2 "$child"
+    sleep 5s
+    if ps -p "$child" > /dev/null; then
+      echo "qemu-system-custom: PID $child is still running. Sending SIGKILL" >&2
+      kill -9 "$child"
+      sleep 10s
+    fi
+  fi
+  echo "qemu-system-custom: Removing TAP interface $TAP_IF" >&2
+  ip tuntap del dev "$TAP_IF" mode tap
+  echo "qemu-system-custom: Removing differental image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" >&2
+  rm -f "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
+  if ! compgen -G "$JOB_DIR/diff.*.qcow2" > /dev/null; then
+    echo "qemu-system-custom: Removing parent image $JOB_DIR/parent.qcow2" >&2
+    rm -f  "$JOB_DIR/parent.qcow2"
+    if [ -z "$(ls -A "$JOB_DIR")" ]; then
+      rmdir "$JOB_DIR"
+    fi
+  fi
+}
+generate_mac() {
+  local bytes
+  bytes=$(hexdump -n3 -v -e '3/1 "%02X"' /dev/urandom)
+  printf "52:54:00:%s:%s:%s" "${bytes:0:2}" "${bytes:2:2}" "${bytes:4:2}"
+}
+is_valid_url() {
+  # Accept common URI schemes: letters followed by letters/digits/+.- then ://
+  # Basic host/path check; allows query/fragments/spaces only if quoted upstream.
+  local url="$1"
+
+  # Trim leading/trailing whitespace just in case
+  url="${url#"${url%%[![:space:]]*}"}"
+  url="${url%"${url##*[![:space:]]}"}"
+
+  # Regex:
+  #  scheme://host[/...]
+  #  scheme must start with letter, then [A-Za-z0-9+.-]
+  #  host can't start with / or whitespace
+  # NOTE: This is pragmatic, not RFC-perfect. Tight enough to catch obvious errors.
+  local re='^[A-Za-z][A-Za-z0-9+.\-]*://[^/[:space:]][^[:space:]]*$'
+
+  if [[ "$url" =~ $re ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+usage() {
+  echo "Usage: $0 -vlan VID [QEMU_ARGS...]" >&2
+  echo "Example: $0 -vlan 100 -m 4096 -drive file=disk.qcow2,if=virtio" >&2
+}
+
+if [ $# -eq 0 ]; then
+  usage
+  exit
+fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -drive)
+      # The entire -drive value is the next token
+      drv="${2:-}"
+
+      # Parse comma-separated key=value pairs in the -drive argument
+      # NOTE: This simple parser splits by commas, so file values containing commas
+      # must be quoted and the parsing logic would need an upgrade to handle them.
+      id_val=""
+      file_val=""
+
+      IFS=',' read -ra kvpairs <<< "$drv"
+      for kv in "${kvpairs[@]}"; do
+        key="${kv%%=*}"
+        val="${kv#*=}"
+
+        # Strip surrounding quotes from val (supports "val" or 'val')
+        if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+          val="${val%\"}"
+          val="${val#\"}"
+        elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+          val="${val%\'}"
+          val="${val#\'}"
+        fi
+
+        case "$key" in
+          id)   id_val="$val" ;;
+          file) file_val="$val" ;;
+        esac
+      done
+
+      if [[ "$id_val" == "image0" ]]; then
+        # Require file to be a URL
+        if [[ -z "$file_val" ]]; then
+          echo "Error: -drive with id=image0 must include a 'file=' URL." >&2
+          exit 1
+        fi
+        if ! is_valid_url "$file_val"; then
+          echo "Error: 'file' for id=image0 is not a valid URL: $file_val" >&2
+          echo "       Expected format like: https://host/path or s3://bucket/key" >&2
+          exit 1
+        fi
+
+        IMAGE_URL="$file_val"
+        # Do NOT pass this drive to QEMU; you handle the URL in the wrapper.
+      else
+        # Pass other drives as-is
+        EXTRA_ARGS+=("-drive" "$drv")
+      fi
+
+      shift 2
+      ;;
+    -name)
+      VM_NAME=
+      EXTRA_ARGS+=("-name" "${NOMAD_JOB_NAME}-${NOMAD_ALLOC_INDEX}")
+      shift 2
+      ;;
+    --version)
+      VLAN="unknown"
+      /usr/bin/qemu-system-x86_64 -version
+      exit 0
+      ;;
+    -vlan)
+      VLAN="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      EXTRA_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+if [[ -z "$VLAN" ]]; then
+  echo "qemu-system-custom: Parameter -vlan is mandantory" >&2
+  exit
+fi
+JOB_DIR="/data/jobs/$NOMAD_JOB_NAME"
+
+# Generate MAC address (QEMU OUI prefix)
+MAC_ADDR="$(generate_mac)"
+
+# Generate TAP interface name
+RANDHEX="$(hexdump -n3 -v -e '3/1 "%02x"' /dev/urandom)"
+TAP_IF="tap-${RANDHEX}"
+
+# Handle cleanup after exit
+trap 'cleanup' 0
+
+# Make sure that bond0 has access to VLAN
+bridge vlan add dev bond0 vid "$VLAN" master
+
+# Create TAP interface
+echo "qemu-system-custom: Creating TAP interface $TAP_IF with MAC address $MAC_ADDR" >&2
+ip tuntap add dev "$TAP_IF" mode tap
+ip link set "$TAP_IF" master br0
+ip link set "$TAP_IF" up
+bridge vlan del dev "$TAP_IF" vid 1
+bridge vlan add dev "$TAP_IF" vid "$VLAN" pvid untagged
+
+# Add default arguments for QEMU
+TASK_LOCAL_DIR="/data/nomad/alloc/$NOMAD_ALLOC_ID/$NOMAD_TASK_NAME/local"
+QEMU_DEFAULT_ARGS=(
+  -device "virtio-net-pci,netdev=net0,mac=${MAC_ADDR}"
+  -netdev "tap,id=net0,ifname=${TAP_IF},script=no,downscript=no"
+  -vnc "unix:$TASK_LOCAL_DIR/vnc.sock"
+)
+
+# Download image and create linked clone
+sleep $((${NOMAD_ALLOC_INDEX}*3))s
+while [ ! -f "$JOB_DIR/parent.qcow2" ]; do
+  if [ ! -f "$JOB_DIR/parent.qcow2.lock" ]; then
+    mkdir -p "$JOB_DIR"
+    touch "$JOB_DIR/parent.qcow2.lock"
+    echo "qemu-system-custom: Parent image $JOB_DIR/parent.qcow2 does not exist. Downloading..." >&2
+    curl -L -C - -o "$JOB_DIR/parent.qcow2.part" "$IMAGE_URL"
+    mv "$JOB_DIR/parent.qcow2.part" "$JOB_DIR/parent.qcow2"
+    rm "$JOB_DIR/parent.qcow2.lock"
+  else
+    echo "qemu-system-custom: Parent image does not exist. Waiting..." >&2
+    sleep 3s
+  fi
+done
+echo "qemu-system-custom: Creating differental image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" >&2
+qemu-img create -f qcow2 -F qcow2 -b "$JOB_DIR/parent.qcow2" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
+QEMU_DEFAULT_ARGS+=("-drive" "file=$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2,if=virtio,id=image0")
+
+# Add OpenStack compatible "config-2" drive for VM if "config-drive" folder exist.
+# And generate meta_data.json if "user_data" is found.
+# Look: https://github.com/hashicorp/nomad/issues/17970#issuecomment-2262899006
+CONFIG_DIR="$TASK_LOCAL_DIR/config-drive"
+if [ -d "$CONFIG_DIR" ]; then
+  QEMU_DEFAULT_ARGS+=("-drive" "if=virtio,file=fat:ro:$CONFIG_DIR/,file.label=config-2,format=raw,media=disk,readonly=on")
+  CLOUD_INIT_DIR="$CONFIG_DIR/openstack/latest"
+  if [ -f "$CLOUD_INIT_DIR/user_data" ]; then
+    echo "{\"uuid\": \"$NOMAD_ALLOC_ID\"}" > "$CLOUD_INIT_DIR/meta_data.json"
+  fi
+fi
+
+# Run QEMU
+/usr/bin/qemu-system-x86_64 "${QEMU_DEFAULT_ARGS[@]}" "${EXTRA_ARGS[@]}" &
+child=$!
+wait "$child"

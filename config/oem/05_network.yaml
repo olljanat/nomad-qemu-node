@@ -1,0 +1,103 @@
+name: Automatic bond for all interfaces
+stages:
+  initramfs:
+    - name: Setup network
+      files:
+        - path: /etc/netplan/elemental_setup.yaml
+          content: |
+            network:
+              version: 2
+              renderer: networkd
+              ethernets:
+                all-en:
+                  match:
+                    name: "en*"
+                  optional: true
+                  # prevent individual DHCP
+                  dhcp4: false
+                  dhcp6: false
+                  # Avoid IPv6 link-local delays
+                  link-local: []
+              bonds:
+                bond0:
+                  interfaces: [all-en]
+                  # make sure that IP provided by DHCP is configured
+                  # bridge, not to bond
+                  dhcp4: false
+                  dhcp6: false
+                  link-local: []
+                  parameters:
+                    mode: active-backup
+                    mii-monitor-interval: 100
+                    min-links: 1
+              bridges:
+                br0:
+                  interfaces: [bond0]
+                  dhcp4: true
+                  dhcp6: false
+                  parameters:
+                    stp: false
+                    forward-delay: 0
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/networkd-dispatcher/routable.d/99-br0-vlan-filtering
+          content: |
+            #!/bin/bash
+            ip link set br0 type bridge vlan_filtering 1 vlan_default_pvid 1
+          permissions: 0755
+          owner: 0
+          group: 0
+        - path: /etc/ssh/sshd_config.d/root_login.conf
+          content: |
+            PermitRootLogin yes
+          permissions: 0644
+          owner: 0
+          group: 0
+        # Make shutdown faster
+        # https://www.man7.org/linux/man-pages/man5/systemd-system.conf.5.html
+        # https://www.man7.org/linux/man-pages/man1/systemd.1.html
+        - path: /etc/systemd/system.conf
+          content: |
+            [Manager]
+            DefaultTimeoutStopSec=5s
+            DumpCore=no
+          permissions: 0644
+          owner: 0
+          group: 0
+      commands:
+        - ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+        - netplan apply
+
+  # Make sure that /etc/systemd is not immutable
+  rootfs.after:
+    - name: "Immutable Layout configuration"
+      environment_file: /run/cos/cos-layout.env
+      environment:
+        VOLUMES: "LABEL=COS_OEM:/oem LABEL=COS_PERSISTENT:/usr/local"
+        OVERLAY: "tmpfs:25%"
+        RW_PATHS: "/etc /var"
+        PERSISTENT_STATE_PATHS: >-
+          /etc/ssh
+          /home
+          /opt
+          /root
+          /var/log
+        PERSISTENT_STATE_BIND: "true"
+
+  network:
+    - name: Performance optimizations
+      sysctl:
+        fs.file-max: '1000000000'
+        fs.inotify.max_user_instances: '1024'
+        fs.inotify.max_user_watches: '1048576'
+        net.core.somaxconn: '4096'
+        net.ipv4.tcp_retries2: '5'
+        vm.dirty_background_ratio: '5'
+        vm.dirty_ratio: '15'
+        vm.dirty_expire_centisecs: '500'
+        vm.dirty_writeback_centisecs: '100'
+        vm.overcommit_memory: '1'
+        vm.max_map_count: '262144'
+        vm.min_free_kbytes: '65536'
+        vm.swappiness: '0'

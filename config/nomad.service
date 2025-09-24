@@ -1,0 +1,25 @@
+[Unit]
+Description=Nomad
+Documentation=https://developer.hashicorp.com/nomad/docs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=root
+Group=root
+
+Type=notify
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStartPre=mount LABEL=DATA /data
+ExecStart=/usr/bin/nomad agent -config /data/config
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+TasksMax=infinity
+OOMScoreAdjust=-1000
+
+[Install]
+WantedBy=multi-user.target
