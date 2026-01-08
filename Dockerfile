@@ -131,11 +131,9 @@ RUN mkdir -p /usr/lib/elemental/bootloader && \
 ARG QEMU_VERSION=unknown
 COPY /scripts/qemu-system-custom /usr/local/bin/
 COPY /vm-console/qemu-vm-console /usr/local/bin/
-COPY /vm-console/qemu-vm-console.service /usr/lib/systemd/system/
 RUN add-apt-repository universe \
     && apt-get update \
     && apt-get install -y novnc qemu-system-x86=${QEMU_VERSION} \
-    && systemctl enable qemu-vm-console.service \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -146,13 +144,17 @@ RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com noble main" > /etc/apt/sources.list.d/hashicorp.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nomad=${NOMAD_VERSION} \
-    && systemctl enable nomad.service \
     && rm -rf /etc/nomad.d \
     && rm -rf /opt/nomad \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-COPY /config/nomad.service /usr/lib/systemd/system/
 COPY /config/nomad.d/* /usr/share/nomad/
+
+# Make sure that /data is mounted before starting Nomad
+COPY /systemd/* /usr/lib/systemd/system/
+RUN systemctl enable data.mount \
+    && systemctl enable nomad.service \
+    && systemctl enable qemu-vm-console.service
 
 # Good for validation after the build
 CMD ["/bin/bash"]
