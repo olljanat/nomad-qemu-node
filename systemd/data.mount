@@ -1,0 +1,11 @@
+[Unit]
+Description=Mount /data
+
+[Mount]
+Where=/data
+What=LABEL=DATA
+Type=ext4
+Options=rw,relatime
+
+[Install]
+WantedBy=multi-user.target
