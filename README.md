@@ -29,5 +29,4 @@ Minimal OS to run QEMU VMs and orchestrate them with HashiCorp Nomad.
 
 # Upgrade
 1. Run command `elemental upgrade --reboot`
-2. Reboot
-3. Check version by running `grep IMAGE_TAG /etc/os-release`
+2. Check version by running `grep IMAGE_TAG /etc/os-release`
