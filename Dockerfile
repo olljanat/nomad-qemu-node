@@ -52,6 +52,7 @@ RUN apt-get update \
     shim \
     shim-signed \
     socat \
+    software-properties-common \
     squashfs-tools \
     systemd \
     systemd-resolved \
@@ -128,11 +129,15 @@ RUN mkdir -p /usr/lib/elemental/bootloader && \
 
 # Add QEMU
 ARG QEMU_VERSION=unknown
-RUN apt-get update \
-    && apt-get install -y qemu-system-x86=${QEMU_VERSION} \
+COPY /scripts/qemu-system-custom /usr/local/bin/
+COPY /vm-console/qemu-vm-console /usr/local/bin/
+COPY /vm-console/qemu-vm-console.service /usr/lib/systemd/system/
+RUN add-apt-repository universe \
+    && apt-get update \
+    && apt-get install -y novnc qemu-system-x86=${QEMU_VERSION} \
+    && systemctl enable qemu-vm-console.service \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-COPY /scripts/qemu-system-custom /usr/local/bin/
 
 # Add HashiCorp Nomad
 ARG NOMAD_VERSION=unknown

@@ -1,5 +1,5 @@
 job "ubuntu" {
-  group "group" {
+  group "vm" {
     count = 2
     restart {
       attempts = 0
@@ -18,8 +18,7 @@ job "ubuntu" {
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
-          "-vlan", "3461",
-          "-vnc", ":${NOMAD_ALLOC_INDEX}"
+          "-vlan", "3461"
         ]
         graceful_shutdown = true
       }
@@ -45,6 +44,10 @@ users:
   - ssh-ed25519 <removed>
   shell: /bin/bash
 ssh_pwauth: true
+runcmd:
+- sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="vga=791"/' /etc/default/grub
+- update-grub
+- reboot
  EOF
         destination = "local/config-drive/openstack/latest/user_data"
       }
