@@ -1,5 +1,5 @@
 job "ubuntu" {
-  group "group" {
+  group "vm" {
     count = 2
     restart {
       attempts = 0
