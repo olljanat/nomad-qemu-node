@@ -1,0 +1,13 @@
+[Unit]
+Description=Mount /data
+Wants=network-online.target
+After=network-online.target
+
+[Mount]
+Where=/data
+What=LABEL=DATA
+Type=ext4
+Options=rw,relatime
+
+[Install]
+WantedBy=multi-user.target
