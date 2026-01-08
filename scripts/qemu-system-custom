@@ -8,6 +8,7 @@ set -euo pipefail
 # * Configure QEMU listening VNC in Unix socket.
 # * Download image from URL and create linked clone for each VM.
 
+CHILD=""
 EXTRA_ARGS=()
 IMAGE_URL=""
 VLAN=""
@@ -16,14 +17,16 @@ VLAN=""
 cleanup() {
   status=$?
   echo "qemu-system-custom: Cleanup process called with status: $status" >&2
-  if ps -p "$child" > /dev/null; then
-    echo "qemu-system-custom: Sending SIGINT to PID $child (qemu-system-x86_64)" >&2
-    kill -2 "$child"
-    sleep 5s
-    if ps -p "$child" > /dev/null; then
-      echo "qemu-system-custom: PID $child is still running. Sending SIGKILL" >&2
-      kill -9 "$child"
-      sleep 10s
+  if [[ -n "$CHILD" ]]; then
+    if ps -p "$CHILD" > /dev/null; then
+      echo "qemu-system-custom: Sending SIGINT to PID $CHILD (qemu-system-x86_64)" >&2
+      kill -2 "$CHILD"
+      sleep 5s
+      if ps -p "$CHILD" > /dev/null; then
+        echo "qemu-system-custom: PID $CHILD is still running. Sending SIGKILL" >&2
+        kill -9 "$CHILD"
+        sleep 10s
+      fi
     fi
   fi
   echo "qemu-system-custom: Removing TAP interface $TAP_IF" >&2
@@ -220,5 +223,5 @@ fi
 
 # Run QEMU
 /usr/bin/qemu-system-x86_64 "${QEMU_DEFAULT_ARGS[@]}" "${EXTRA_ARGS[@]}" &
-child=$!
-wait "$child"
+CHILD=$!
+wait "$CHILD"
