@@ -10,7 +10,7 @@ Group=root
 
 Type=notify
 ExecReload=/bin/kill -HUP $MAINPID
-ExecStartPre=mount LABEL=DATA /data
+ExecStartPre=mount -a LABEL=DATA /data
 ExecStart=/usr/bin/nomad agent -config /data/config
 KillMode=process
 KillSignal=SIGINT
