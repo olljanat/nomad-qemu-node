@@ -36,7 +36,12 @@ jobs:
           export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
         fi
         echo "${GHCR_TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-    - name: Build
+    - name: Build VM console
+      run: |
+        cd vm-console
+        go build
+        chmod 0755 qemu-vm-console
+    - name: Build installer
       run: |
         git tag ${{ github.event.inputs.version }}
         git checkout tags/${{ github.event.inputs.version }}

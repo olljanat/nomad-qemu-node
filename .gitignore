@@ -1,4 +1,5 @@
 release.md
 rootfs
+vm-console/qemu-vm-console
 *.iso
 *.sha256
