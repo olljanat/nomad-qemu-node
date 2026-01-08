@@ -40,7 +40,6 @@ jobs:
       run: |
         git tag ${{ github.event.inputs.version }}
         git checkout tags/${{ github.event.inputs.version }}
-        git push origin ${{ github.event.inputs.version }}
         export VERSION=${{ github.event.inputs.version }}
 
         docker build . \
@@ -59,6 +58,7 @@ jobs:
         sudo ./elemental --debug build-iso --bootloader-in-rootfs --extra-cmdline "" dir:rootfs
         sudo mv elemental.iso nomad-qemu-node.iso
 
+        git push origin ${{ github.event.inputs.version }}
         echo "# Release ${{ github.event.inputs.version }}" > release.md
         echo "The release contains the following components:" >> release.md
         echo "* [Ubuntu 24.04 LTS](https://ubuntu.com)" >> release.md
