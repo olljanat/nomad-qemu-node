@@ -26,21 +26,25 @@ jobs:
       packages: write
     steps:
     - uses: actions/checkout@v4
+
     - name: Install tools
       run: |
         sudo apt-get update
         sudo apt-get install -y dosfstools mtools squashfs-tools xorriso
+
     - name: Log in to GitHub Container Registry
       run: |
         if [[ -z "$GHCR_TOKEN" ]]; then
           export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
         fi
         echo "${GHCR_TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
     - name: Build VM console
       run: |
         cd vm-console
         go build
         chmod 0755 qemu-vm-console
+
     - name: Build installer
       run: |
         git tag ${{ github.event.inputs.version }}
@@ -56,6 +60,8 @@ jobs:
         docker push ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}
         docker push ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
 
+    - name: Create ISO
+      run: |
         docker create --name export ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
         mkdir rootfs
         docker export export | tar -x -C rootfs
@@ -63,6 +69,8 @@ jobs:
         sudo ./elemental --debug build-iso --bootloader-in-rootfs --extra-cmdline "" dir:rootfs
         sudo mv elemental.iso nomad-qemu-node.iso
 
+    - name: Prepare release
+      run: |
         git push origin ${{ github.event.inputs.version }}
         echo "# Release ${{ github.event.inputs.version }}" > release.md
         echo "The release contains the following components:" >> release.md
