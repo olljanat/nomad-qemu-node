@@ -190,12 +190,12 @@ cp "/usr/share/OVMF/OVMF_VARS_4M.ms.fd" "$TASK_DIR/"
 # Add default arguments for QEMU
 mkdir -p /tmp/vnc
 QEMU_DEFAULT_ARGS=(
-  -drive "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
-  -drive "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd"
-  -cpu "host"
-  -device "virtio-net-pci,netdev=net0,mac=${MAC_ADDR}"
-  -netdev "tap,id=net0,ifname=${TAP_IF},script=no,downscript=no"
-  -vnc "unix:/tmp/vnc/${VM_NAME}.sock"
+  "-cpu" "host"
+  "-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
+  "-drive" "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd"
+  "-device" "virtio-net-pci,netdev=net0,mac=${MAC_ADDR}"
+  "-netdev" "tap,id=net0,ifname=${TAP_IF},script=no,downscript=no"
+  "-vnc" "unix:/tmp/vnc/${VM_NAME}.sock"
 )
 
 # Download image and create linked clone
@@ -215,7 +215,11 @@ while [ ! -f "$JOB_DIR/parent.qcow2" ]; do
 done
 echo "qemu-system-custom: Creating differental image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" >&2
 qemu-img create -f qcow2 -F qcow2 -b "$JOB_DIR/parent.qcow2" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
-QEMU_DEFAULT_ARGS+=("-drive" "file=$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2,if=virtio,id=image0")
+QEMU_DEFAULT_ARGS+=(
+  "-device" "virtio-scsi-pci,id=scsi0"
+  "-drive" "file=${JOB_DIR}/diff.${NOMAD_ALLOC_ID}.qcow2,if=none,id=image0,format=qcow2,index=1"
+  "-device" "scsi-hd,drive=image0,bus=scsi0.0"
+)
 
 # Add OpenStack compatible "config-2" drive for VM if "config-drive" folder exist.
 # And generate meta_data.json if "user_data" is found.
