@@ -191,6 +191,7 @@ cp "/usr/share/OVMF/OVMF_VARS_4M.ms.fd" "$TASK_DIR/"
 mkdir -p /tmp/vnc
 QEMU_DEFAULT_ARGS=(
   "-cpu" "host"
+  "-global" "ICH9-LPC.disable_s3=1"
   "-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
   "-drive" "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd"
   "-device" "virtio-net-pci,netdev=net0,mac=${MAC_ADDR}"
