@@ -18,14 +18,15 @@ job "ubuntu" {
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
-          "-vlan", "3461"
+          "-smp", "4"
+          "-vlan", "1001"
         ]
         graceful_shutdown = true
       }
       kill_timeout = "5m"
       resources {
-        memory = 8192
-        cores  = 4
+        cpu    = 2000  # Reserve 2 CPUs for VM, total CPU cores available for VM is set with "-smp" flag
+        memory = 17408 # 16 GB + 1 GB for qemu-system-custom
       }
       template {
         data        = <<-EOF
