@@ -11,6 +11,7 @@ Minimal OS to run QEMU VMs and orchestrate them with HashiCorp Nomad.
 * VM isolation with VLANs.
 * Web based VM console access.
 * Run all VMs in UEFI mode with secure boot.
+* Ensure compatibility with Windows VMs.
 
 ### Not targets
 * Running VMs with persistent storage.
