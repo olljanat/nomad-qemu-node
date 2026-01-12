@@ -197,6 +197,7 @@ QEMU_DEFAULT_ARGS=(
   "-device" "virtio-net-pci,netdev=net0,mac=${MAC_ADDR}"
   "-netdev" "tap,id=net0,ifname=${TAP_IF},script=no,downscript=no"
   "-vnc" "unix:/tmp/vnc/${VM_NAME}.sock"
+  "-usbdevice" "tablet"
 )
 
 # Download image and create linked clone
