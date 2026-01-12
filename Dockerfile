@@ -24,6 +24,7 @@ RUN apt-get update \
     findutils \
     fdisk \
     gdisk \
+    genisoimage \
     gpg \
     grub2-common \
     grub-efi-amd64 \
