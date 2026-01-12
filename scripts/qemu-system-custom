@@ -136,6 +136,11 @@ while [[ $# -gt 0 ]]; do
       EXTRA_ARGS+=("-name" "$VM_NAME")
       shift 2
       ;;
+    -m)
+      VM_MEM=$((${2/M/} - 1024))
+      EXTRA_ARGS+=("-m" "${VM_MEM}M")
+      shift 2
+      ;;
     --version)
       VLAN="unknown"
       /usr/bin/qemu-system-x86_64 -version
