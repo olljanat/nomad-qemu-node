@@ -235,11 +235,13 @@ QEMU_DEFAULT_ARGS+=(
 # Look: https://github.com/hashicorp/nomad/issues/17970#issuecomment-2262899006
 CONFIG_DIR="$TASK_DIR/local/config-drive"
 if [ -d "$CONFIG_DIR" ]; then
-  QEMU_DEFAULT_ARGS+=("-drive" "if=virtio,file=fat:ro:$CONFIG_DIR/,file.label=config-2,format=raw,media=disk,readonly=on")
   CLOUD_INIT_DIR="$CONFIG_DIR/openstack/latest"
   if [ -f "$CLOUD_INIT_DIR/user_data" ]; then
     echo "{\"uuid\": \"$NOMAD_ALLOC_ID\"}" > "$CLOUD_INIT_DIR/meta_data.json"
   fi
+
+  genisoimage -input-charset utf-8 -volid config-2 -joliet -rock -o "${TASK_DIR}/config-drive.iso" $CONFIG_DIR
+  QEMU_DEFAULT_ARGS+=("-drive" "file=${TASK_DIR}/config-drive.iso,media=cdrom,readonly=on")
 fi
 
 # Run QEMU
