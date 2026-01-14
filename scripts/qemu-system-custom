@@ -133,7 +133,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     -name)
       VM_NAME="${NOMAD_JOB_NAME}-${NOMAD_GROUP_NAME}-${NOMAD_ALLOC_INDEX}"
-      EXTRA_ARGS+=("-name" "$VM_NAME")
       shift 2
       ;;
     -m)
@@ -195,6 +194,7 @@ cp "/usr/share/OVMF/OVMF_VARS_4M.ms.fd" "$TASK_DIR/"
 # Add default arguments for QEMU
 mkdir -p /tmp/vnc
 QEMU_DEFAULT_ARGS=(
+  "-name" "$VM_NAME"
   "-cpu" "host,hv-ipi=on,hv-relaxed=on,hv-runtime=on,hv-spinlocks=0x1fff,hv-stimer=on,hv-synic=on,hv-time=on,hv-vapic=on,hv-vpindex=on,hypervisor=off,+kvm-pv-eoi,+kvm-pv-unhalt"
   "-global" "ICH9-LPC.disable_s3=1"
   "-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
