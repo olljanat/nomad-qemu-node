@@ -225,8 +225,9 @@ done
 echo "qemu-system-custom: Creating differental image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" >&2
 qemu-img create -f qcow2 -F qcow2 -b "$JOB_DIR/parent.qcow2" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
 QEMU_DEFAULT_ARGS+=(
-  "-device" "virtio-scsi-pci,id=scsi0"
-  "-drive" "file=${JOB_DIR}/diff.${NOMAD_ALLOC_ID}.qcow2,if=none,id=image0,format=qcow2,index=1"
+  "-device" "virtio-scsi-pci,id=scsi0,num_queues=8"
+  "-blockdev" "driver=file,filename=${JOB_DIR}/diff.${NOMAD_ALLOC_ID}.qcow2,node-name=disk0"
+  "-blockdev" "driver=qcow2,file=disk0,node-name=image0"
   "-device" "scsi-hd,drive=image0,bus=scsi0.0"
 )
 
