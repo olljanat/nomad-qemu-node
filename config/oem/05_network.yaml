@@ -35,10 +35,13 @@ stages:
                   interfaces: [bond0]
                   dhcp4: true
                   dhcp6: false
+                  dhcp4-overrides:
+                    send-hostname: false
+                    use-hostname: true
                   parameters:
                     stp: false
                     forward-delay: 0
-          permissions: 0644
+          permissions: 0600
           owner: 0
           group: 0
         - path: /etc/networkd-dispatcher/routable.d/99-br0-vlan-filtering
@@ -67,7 +70,9 @@ stages:
           group: 0
       commands:
         - ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+        - rm -f /etc/hostname
         - netplan apply
+        - systemctl restart lldpd
 
   # Make sure that /etc/systemd is not immutable
   rootfs.after:
