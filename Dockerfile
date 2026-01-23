@@ -36,6 +36,7 @@ RUN apt-get update \
     kmod \
     less \
     linux-generic \
+    lldpd \
     locales \
     lvm2 \
     netcat-traditional \
@@ -82,6 +83,9 @@ RUN curl -L https://mirrors.edge.kernel.org/pub/linux/utils/kbd/kbd-${KBD}.tar.x
 # Remove default user
 RUN userdel ubuntu \
     && rm -rf /home/ubuntu
+
+# Configure lldpd to interface name for switches
+RUN echo 'configure lldp portidsubtype ifname' > /etc/lldpd.d/port_info.conf
 
 # Symlink grub2-editenv
 RUN ln -sf /usr/bin/grub-editenv /usr/bin/grub2-editenv
