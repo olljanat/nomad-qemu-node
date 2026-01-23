@@ -36,6 +36,7 @@ RUN apt-get update \
     kmod \
     less \
     linux-generic \
+    lldpd \
     locales \
     lvm2 \
     netcat-traditional \
