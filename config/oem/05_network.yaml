@@ -35,6 +35,9 @@ stages:
                   interfaces: [bond0]
                   dhcp4: true
                   dhcp6: false
+                  dhcp4-overrides:
+                    send-hostname: false
+                    use-hostname: true
                   parameters:
                     stp: false
                     forward-delay: 0
