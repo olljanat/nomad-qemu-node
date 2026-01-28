@@ -9,6 +9,7 @@ set -euo pipefail
 # * Download image from URL and create linked clone for each VM.
 
 CHILD=""
+BOOT_TYPE="SECURE_BOOT"
 EXTRA_ARGS=()
 IMAGE_URL=""
 VLAN=""
@@ -80,6 +81,10 @@ if [ $# -eq 0 ]; then
 fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -boot-type)
+      BOOT_TYPE="$2"
+      shift 2
+      ;;
     -drive)
       # The entire -drive value is the next token
       drv="${2:-}"
@@ -163,6 +168,13 @@ if [[ -z "$VLAN" ]]; then
   echo "qemu-system-custom: Parameter -vlan is mandantory" >&2
   exit
 fi
+TASK_DIR="/data/nomad/alloc/$NOMAD_ALLOC_ID/$NOMAD_TASK_NAME"
+case $BOOT_TYPE in
+  SECURE_BOOT)    BOOT_TYPE_ARGS=("-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd" "-drive" "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd") ;;
+  UEFI)           BOOT_TYPE_ARGS=("-bios" "/usr/share/ovmf/OVMF.fd") ;;
+  BIOS)           BOOT_TYPE_ARGS=() ;;
+  *)              echo "qemu-system-custom: -boot-type $BOOT_TYPE is not supported" >&2; exit ;;
+esac
 JOB_DIR="/data/jobs/$NOMAD_JOB_NAME"
 
 # Generate MAC address (QEMU OUI prefix)
@@ -187,7 +199,6 @@ bridge vlan del dev "$TAP_IF" vid 1
 bridge vlan add dev "$TAP_IF" vid "$VLAN" pvid untagged
 
 # Prepare secure boot files
-TASK_DIR="/data/nomad/alloc/$NOMAD_ALLOC_ID/$NOMAD_TASK_NAME"
 mkdir -p "$TASK_DIR"
 cp "/usr/share/OVMF/OVMF_VARS_4M.ms.fd" "$TASK_DIR/"
 
@@ -197,8 +208,6 @@ QEMU_DEFAULT_ARGS=(
   "-name" "$VM_NAME"
   "-cpu" "host,hv-ipi=on,hv-relaxed=on,hv-runtime=on,hv-spinlocks=0x1fff,hv-stimer=on,hv-synic=on,hv-time=on,hv-vapic=on,hv-vpindex=on,hypervisor=off,+kvm-pv-eoi,+kvm-pv-unhalt"
   "-global" "ICH9-LPC.disable_s3=1"
-  "-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
-  "-drive" "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd"
   "-device" "virtio-net-pci,netdev=net0,mac=${MAC_ADDR}"
   "-netdev" "tap,id=net0,ifname=${TAP_IF},script=no,downscript=no"
   "-vnc" "unix:/tmp/vnc/${VM_NAME}.sock"
@@ -246,6 +255,6 @@ if [ -d "$CONFIG_DIR" ]; then
 fi
 
 # Run QEMU
-/usr/bin/qemu-system-x86_64 "${QEMU_DEFAULT_ARGS[@]}" "${EXTRA_ARGS[@]}" &
+/usr/bin/qemu-system-x86_64 "${QEMU_DEFAULT_ARGS[@]}" "${EXTRA_ARGS[@]}" "${BOOT_TYPE_ARGS[@]}" &
 CHILD=$!
 wait "$CHILD"
