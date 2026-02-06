@@ -42,6 +42,9 @@ cleanup() {
     fi
   fi
   rm -f "/tmp/vnc/${VM_NAME}.sock"
+  if [ -v NOMAD_HOST_PORT_qemu_guest_agent ]; then
+    iptables -t nat -D OUTPUT -p tcp --dport $NOMAD_HOST_PORT_qemu_guest_agent -j REDIRECT --to-ports 5801
+  fi
 }
 generate_mac() {
   local bytes
@@ -197,6 +200,11 @@ ip link set "$TAP_IF" master br0
 ip link set "$TAP_IF" up
 bridge vlan del dev "$TAP_IF" vid 1
 bridge vlan add dev "$TAP_IF" vid "$VLAN" pvid untagged
+
+# Setup port mapping for QEMU Guest Agent proxy service
+if [ -v NOMAD_HOST_PORT_qemu_guest_agent ]; then
+  iptables -t nat -A OUTPUT -p tcp --dport $NOMAD_HOST_PORT_qemu_guest_agent -j REDIRECT --to-ports 5801
+fi
 
 # Prepare secure boot files
 mkdir -p "$TASK_DIR"
