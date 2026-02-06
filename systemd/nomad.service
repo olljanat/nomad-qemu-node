@@ -15,8 +15,8 @@ KillMode=process
 KillSignal=SIGINT
 LimitNOFILE=65536
 LimitNPROC=infinity
-Restart=on-failure
-RestartSec=2
+Restart=always
+RestartSec=10s
 TasksMax=infinity
 OOMScoreAdjust=-1000
 
