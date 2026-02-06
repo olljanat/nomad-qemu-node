@@ -13,7 +13,7 @@ on:
         required: true
       qemu_version:
         description: 'QEMU version'
-        default: '1:8.2.2+ds-0ubuntu1.11'
+        default: '1:8.2.2+ds-0ubuntu1.12'
         required: true
 
 jobs:
