@@ -8,8 +8,8 @@ Group=root
 
 Type=simple
 ExecStart=/usr/local/bin/qemu-ga-server
-Restart=on-failure
-RestartSec=2s
+Restart=always
+RestartSec=30s
 
 [Install]
 WantedBy=multi-user.target
