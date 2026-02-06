@@ -1,0 +1,15 @@
+[Unit]
+Description=QEMU Guest Agent API
+After=network.target
+
+[Service]
+User=root
+Group=root
+
+Type=simple
+ExecStart=/usr/local/bin/qemu-ga-server
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target

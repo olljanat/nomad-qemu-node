@@ -18,10 +18,11 @@ job "ubuntu" {
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
-          "-smp", "4"
+          "-smp", "4",
           "-vlan", "1001"
         ]
         graceful_shutdown = true
+        guest_agent = true
       }
       kill_timeout = "5m"
       resources {
@@ -45,6 +46,8 @@ users:
   - ssh-ed25519 <removed>
   shell: /bin/bash
 ssh_pwauth: true
+packages:
+- qemu-guest-agent
 runcmd:
 - sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="vga=791"/' /etc/default/grub
 - update-grub
@@ -52,6 +55,22 @@ runcmd:
  EOF
         destination = "local/config-drive/openstack/latest/user_data"
       }
+      service {
+        name     = "ubuntu-vm-qemu-agent"
+        provider = "nomad"
+        address  = "127.0.0.1"
+        port     = "qemu_guest_agent"
+        check {
+          name     = "ping"
+          type     = "http"
+          path     = "/qga/${NOMAD_ALLOC_ID}/vm/guest-ping"
+          interval = "1m"
+          timeout  = "1s"
+        }
+      }
+    }
+    network {
+      port "qemu_guest_agent" {}
     }
   }
 }

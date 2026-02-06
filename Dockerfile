@@ -31,6 +31,7 @@ RUN apt-get update \
     haveged \
     htop \
     iproute2 \
+    iptables \
     iputils-ping \
     kbd \
     kmod \
@@ -134,7 +135,7 @@ RUN mkdir -p /usr/lib/elemental/bootloader && \
 
 # Add QEMU
 ARG QEMU_VERSION=unknown
-COPY /scripts/qemu-system-custom /usr/local/bin/
+COPY /scripts/* /usr/local/bin/
 COPY /vm-console/qemu-vm-console /usr/local/bin/
 RUN add-apt-repository universe \
     && apt-get update \
@@ -159,6 +160,7 @@ COPY /config/nomad.d/* /usr/share/nomad/
 COPY /systemd/* /usr/lib/systemd/system/
 RUN systemctl enable data.mount \
     && systemctl enable nomad.service \
+    && systemctl enable qemu-ga-server.service \
     && systemctl enable qemu-vm-console.service
 
 # Good for validation after the build

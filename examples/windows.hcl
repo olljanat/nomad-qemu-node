@@ -22,6 +22,7 @@ job "windows" {
           "-vlan", "1002"
         ]
         graceful_shutdown = true
+        guest_agent = true
       }
       kill_timeout = "5m"
       resources {
@@ -62,6 +63,22 @@ job "windows" {
  EOF
         destination = "local/config-drive/unattend.xml"
       }
+      service {
+        name     = "windows-vm-qemu-agent"
+        provider = "nomad"
+        address  = "127.0.0.1"
+        port     = "qemu_guest_agent"
+        check {
+          name     = "ping"
+          type     = "http"
+          path     = "/qga/${NOMAD_ALLOC_ID}/win/guest-ping"
+          interval = "1m"
+          timeout  = "1s"
+        }
+      }
+    }
+    network {
+      port "qemu_guest_agent" {}
     }
   }
 }
