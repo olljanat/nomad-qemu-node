@@ -45,6 +45,8 @@ users:
   - ssh-ed25519 <removed>
   shell: /bin/bash
 ssh_pwauth: true
+packages:
+- qemu-guest-agent
 runcmd:
 - sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="vga=791"/' /etc/default/grub
 - update-grub
@@ -52,6 +54,22 @@ runcmd:
  EOF
         destination = "local/config-drive/openstack/latest/user_data"
       }
+      service {
+        name     = "ubuntu-vm-qemu-agent"
+        provider = "nomad"
+        address  = "127.0.0.1"
+        port     = "qemu_guest_agent"
+        check {
+          name     = "ping"
+          type     = "http"
+          path     = "/qga/${NOMAD_ALLOC_ID}/win/guest-ping"
+          interval = "1m"
+          timeout  = "1s"
+        }
+      }
+    }
+    network {
+      port "qemu_guest_agent" {}
     }
   }
 }
