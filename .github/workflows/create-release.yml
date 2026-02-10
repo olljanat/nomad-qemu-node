@@ -11,11 +11,6 @@ on:
         description: 'HashiCorp Nomad version'
         default: '1.11.1-1'
         required: true
-      qemu_version:
-        description: 'QEMU version'
-        default: '1:8.2.2+ds-0ubuntu1.12'
-        required: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,7 +48,6 @@ jobs:
 
         docker build . \
           --build-arg NOMAD_VERSION=${{ github.event.inputs.nomad_version }} \
-          --build-arg QEMU_VERSION=${{ github.event.inputs.qemu_version }} \
           --build-arg VERSION=${{ github.event.inputs.version }} \
           -t ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}
         docker tag ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }} ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
@@ -74,7 +68,7 @@ jobs:
         git push origin ${{ github.event.inputs.version }}
         echo "# Release ${{ github.event.inputs.version }}" > release.md
         echo "The release contains the following components:" >> release.md
-        echo "* [Ubuntu 24.04 LTS](https://ubuntu.com)" >> release.md
+        echo "* [Debian 13 "trixie"](https://www.debian.org)" >> release.md
         echo "* [HashiCorp Nomad ${{ github.event.inputs.nomad_version }}](https://developer.hashicorp.com/nomad)" >> release.md
         echo "* [QEMU ${{ github.event.inputs.qemu_version }}](https://www.qemu.org)" >> release.md
         echo "* [QEMU wrapper script](https://github.com/${{ github.repository_owner }}/nomad-qemu-node/blob/${{ github.event.inputs.version }}/scripts/qemu-system-custom)" >> release.md

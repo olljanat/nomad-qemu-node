@@ -1,5 +1,5 @@
 # OS base image of our choice
-FROM ubuntu:24.04 AS os
+FROM debian:13 AS os
 
 # install kernel, systemd, dracut, grub2 and other required tools
 RUN apt-get update \
@@ -27,7 +27,7 @@ RUN apt-get update \
     genisoimage \
     gpg \
     grub2-common \
-    grub-efi-amd64 \
+    grub-efi-amd64-signed \
     haveged \
     htop \
     iproute2 \
@@ -36,7 +36,7 @@ RUN apt-get update \
     kbd \
     kmod \
     less \
-    linux-generic \
+    linux-image-amd64 \
     lldpd \
     locales \
     lvm2 \
@@ -52,10 +52,8 @@ RUN apt-get update \
     patch \
     psmisc \
     rsync \
-    shim \
     shim-signed \
     socat \
-    software-properties-common \
     squashfs-tools \
     systemd \
     systemd-resolved \
@@ -69,7 +67,8 @@ RUN apt-get update \
     xorriso \
     xz-utils \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && echo > /etc/motd
 
 # Hack to prevent systemd-firstboot failures while setting keymap, this is known
 # Debian issue (T_T) https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790955
@@ -80,10 +79,6 @@ RUN curl -L https://mirrors.edge.kernel.org/pub/linux/utils/kbd/kbd-${KBD}.tar.x
     && cp -Rp kbd-${KBD}/data/keymaps/* /usr/share/keymaps/ \
     && rm kbd-${KBD}.tar.xz \
     && mkdir /data
-
-# Remove default user
-RUN userdel ubuntu \
-    && rm -rf /home/ubuntu
 
 # Configure lldpd to interface name for switches
 RUN echo 'configure lldp portidsubtype ifname' > /etc/lldpd.d/port_info.conf
@@ -96,9 +91,6 @@ COPY /elemental /usr/bin/elemental
 
 # Enable essential services
 RUN systemctl enable systemd-networkd.service
-
-# Enable /tmp to be on tmpfs
-RUN cp /usr/share/systemd/tmp.mount /etc/systemd/system
 
 # Generate en_US.UTF-8 locale, this the locale set at boot by
 # the default cloud-init
@@ -130,16 +122,14 @@ COPY /config/oem/ /system/oem/
 # this way elemental installer can easily fetch them
 RUN mkdir -p /usr/lib/elemental/bootloader && \
     cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /usr/lib/elemental/bootloader/grubx64.efi && \
-    cp /usr/lib/shim/shimx64.efi.signed.latest /usr/lib/elemental/bootloader/shimx64.efi && \
+    cp /usr/lib/shim/shimx64.efi.signed /usr/lib/elemental/bootloader/shimx64.efi && \
     cp /usr/lib/shim/mmx64.efi /usr/lib/elemental/bootloader/mmx64.efi
 
 # Add QEMU
-ARG QEMU_VERSION=unknown
 COPY /scripts/* /usr/local/bin/
 COPY /vm-console/qemu-vm-console /usr/local/bin/
-RUN add-apt-repository universe \
-    && apt-get update \
-    && apt-get install -y novnc qemu-system-x86=${QEMU_VERSION} \
+RUN apt-get update \
+    && apt-get install -y novnc qemu-system-x86 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -147,7 +137,7 @@ RUN add-apt-repository universe \
 ARG NOMAD_VERSION=unknown
 RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
     gpg --dearmor > /usr/share/keyrings/hashicorp-archive-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com noble main" > /etc/apt/sources.list.d/hashicorp.list \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com trixie main" > /etc/apt/sources.list.d/hashicorp.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nomad=${NOMAD_VERSION} \
     && rm -rf /etc/nomad.d \
