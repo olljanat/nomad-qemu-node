@@ -61,7 +61,6 @@ RUN apt-get update \
     systemd-timesyncd \
     tcpdump \
     tzdata \
-    uml-utilities \
     vim \
     wget \
     xorriso \
@@ -79,6 +78,12 @@ RUN curl -L https://mirrors.edge.kernel.org/pub/linux/utils/kbd/kbd-${KBD}.tar.x
     && cp -Rp kbd-${KBD}/data/keymaps/* /usr/share/keymaps/ \
     && rm kbd-${KBD}.tar.xz \
     && mkdir /data
+
+# Add module configs
+COPY /modprobe.d/* /etc/modprobe.d/
+
+# Disable audit message spam to console
+RUN systemctl mask systemd-journald-audit.socket
 
 # Configure lldpd to interface name for switches
 RUN echo 'configure lldp portidsubtype ifname' > /etc/lldpd.d/port_info.conf
@@ -152,6 +157,14 @@ RUN systemctl enable data.mount \
     && systemctl enable nomad.service \
     && systemctl enable qemu-ga-server.service \
     && systemctl enable qemu-vm-console.service
+
+# Ensure that every server has unique machine-id and bridge interface MAC address
+# https://wiki.debian.org/MachineId
+# https://fedoraproject.org/wiki/Changes/MAC_Address_Policy_none
+COPY /config/99-default.link /lib/systemd/network/
+RUN rm -f /var/lib/dbus/machine-id \
+    && ln -s /etc/machine-id /var/lib/dbus/machine-id \
+    && rm -f /etc/machine-id \
 
 # Good for validation after the build
 CMD ["/bin/bash"]
