@@ -51,7 +51,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 				  a.href = '#';
 				  a.textContent = vm;
 				  a.onclick = () => {
-					window.open('/novnc/vnc.html?path=vnc/' + vm + '&autoconnect=true&resize=scale');
+					window.open('/novnc/vnc.html?path=/vnc/' + vm + '&autoconnect=true&resize=scale');
 				  };
 				  li.appendChild(a);
 				  ul.appendChild(li);
