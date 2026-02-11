@@ -6,12 +6,13 @@ set -euo pipefail
 # * Connect TAP interface to VLAN and make sure that "bond0" has access to it too.
 # * Mount "config-drive" to VM if provided.
 # * Configure QEMU listening VNC in Unix socket.
-# * Download image from URL and create linked clone for each VM.
+# * Download image from URL (global cache, ETag-based updates) and create linked clone.
 
 CHILD=""
 BOOT_TYPE="SECURE_BOOT"
 EXTRA_ARGS=()
 IMAGE_URL=""
+IMAGES_DIR="/data/images"
 VLAN=""
 
 # Functions
@@ -32,14 +33,42 @@ cleanup() {
   fi
   echo "qemu-system-custom: Removing TAP interface $TAP_IF" >&2
   ip tuntap del dev "$TAP_IF" mode tap
-  echo "qemu-system-custom: Removing differental image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" >&2
-  rm -f "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
-  if ! compgen -G "$JOB_DIR/diff.*.qcow2" > /dev/null; then
-    echo "qemu-system-custom: Removing parent image $JOB_DIR/parent.qcow2" >&2
-    rm -f  "$JOB_DIR/parent.qcow2"
-    if [ -z "$(ls -A "$JOB_DIR")" ]; then
-      rmdir "$JOB_DIR"
-    fi
+
+  # Remove parent image only if none of the jobs is referencing it and it is not latest.
+  if [[ -f "$JOB_DIR/diff.$NOMAD_ALLOC_ID.parent" ]]; then
+    PARENT_FILE=$(cat "$JOB_DIR/diff.$NOMAD_ALLOC_ID.parent")
+    echo "qemu-system-custom: Removing differential image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2 (backed by $PARENT_FILE)" >&2
+    rm -f "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.parent"
+
+    REFCOUNT_FILE="${PARENT_FILE}.refcount"
+    REF_LOCK="${PARENT_FILE}.ref.lock"
+    (
+      flock -x 202
+      if [[ -f "$REFCOUNT_FILE" ]]; then
+        COUNT=$(cat "$REFCOUNT_FILE")
+        if [[ $COUNT -gt 1 ]]; then
+          echo $((COUNT - 1)) > "$REFCOUNT_FILE"
+        else
+          rm -f "$REFCOUNT_FILE"
+          # Delete only if NOT the current latest
+          IMAGE_DIR=$(dirname "$PARENT_FILE")
+          if [[ -f "$IMAGE_DIR/current_version.txt" ]]; then
+            LATEST_BASENAME=$(cat "$IMAGE_DIR/current_version.txt")
+            LATEST_FILE="$IMAGE_DIR/$LATEST_BASENAME"
+            if [[ "$PARENT_FILE" != "$LATEST_FILE" ]]; then
+              echo "qemu-system-custom: Removing unused old parent $PARENT_FILE" >&2
+              rm -f "$PARENT_FILE"
+            else
+              echo "qemu-system-custom: Keeping latest parent $PARENT_FILE (no active diffs)" >&2
+            fi
+          else
+            rm -f "$PARENT_FILE"
+          fi
+        fi
+      fi
+    ) 202>"$REF_LOCK"
+  else
+    rm -f "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
   fi
   rm -f "/tmp/vnc/${VM_NAME}.sock"
   if [ -v NOMAD_HOST_PORT_qemu_guest_agent ]; then
@@ -179,6 +208,62 @@ case $BOOT_TYPE in
   *)              echo "qemu-system-custom: -boot-type $BOOT_TYPE is not supported" >&2; exit ;;
 esac
 JOB_DIR="/data/jobs/$NOMAD_JOB_NAME"
+mkdir -p "$JOB_DIR"
+
+# === Global image handling with ETag-based updates ===
+IMAGE_BASENAME=$(basename "$IMAGE_URL")
+IMAGE_NAME=$(echo "$IMAGE_BASENAME" | sed 's/[^a-zA-Z0-9._-]/_/g')
+IMAGE_DIR="$IMAGES_DIR/$IMAGE_NAME"
+mkdir -p "$IMAGE_DIR"
+LOCK_FILE="$IMAGE_DIR/.lock"
+
+sleep $((${NOMAD_ALLOC_INDEX}*3))s
+(
+  flock -x 200 || { echo "qemu-system-custom: Waiting for image lock on $IMAGE_NAME..." >&2; flock -x 200; }
+
+  REMOTE_ETAG=$(curl -sI "$IMAGE_URL" | grep -i '^ETag:' | head -n1 | awk '{print $2}' | tr -d '\r')
+  [[ -z "$REMOTE_ETAG" ]] && REMOTE_ETAG="no-etag-$(date +%s)"
+
+  CURRENT_ETAG=$(cat "$IMAGE_DIR/current.etag" 2>/dev/null || echo "")
+
+  if [[ "$REMOTE_ETAG" != "$CURRENT_ETAG" ]] || [[ ! -f "$IMAGE_DIR/current_version.txt" ]]; then
+    echo "qemu-system-custom: New version detected for $IMAGE_NAME (ETag changed). Downloading..." >&2
+
+    TEMP_FILE=$(mktemp "$IMAGE_DIR/download.XXXXXX")
+    curl -L -f -o "$TEMP_FILE" "$IMAGE_URL"
+
+    ETAG_CLEAN=$(echo "$REMOTE_ETAG" | sed 's/"//g' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '_')
+    VERSION_BASENAME="${IMAGE_NAME}-${ETAG_CLEAN}.qcow2"
+    VERSION_FILE="$IMAGE_DIR/$VERSION_BASENAME"
+
+    echo "qemu-system-custom: Converting to qcow2..." >&2
+    qemu-img convert -q -O qcow2 "$TEMP_FILE" "$VERSION_FILE"
+
+    rm -f "$TEMP_FILE"
+    echo "$REMOTE_ETAG" > "$IMAGE_DIR/current.etag"
+    echo "$VERSION_BASENAME" > "$IMAGE_DIR/current_version.txt"
+    ln -sf "$VERSION_FILE" "$IMAGE_DIR/latest.qcow2"  # optional, for inspection
+  fi
+) 200>"$LOCK_FILE"
+
+CURRENT_VERSION=$(cat "$IMAGE_DIR/current_version.txt")
+PARENT_FILE="$IMAGE_DIR/$CURRENT_VERSION"
+
+# === Create differential image ===
+echo "qemu-system-custom: Creating differential image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2 backed by $PARENT_FILE" >&2
+qemu-img create -q -f qcow2 -F qcow2 -b "$PARENT_FILE" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
+
+# Record parent for cleanup/refcount
+echo "$PARENT_FILE" > "$JOB_DIR/diff.$NOMAD_ALLOC_ID.parent"
+
+# Increment refcount
+REFCOUNT_FILE="${PARENT_FILE}.refcount"
+REF_LOCK="${PARENT_FILE}.ref.lock"
+(
+  flock -x 201
+  COUNT=$(cat "$REFCOUNT_FILE" 2>/dev/null || echo 0)
+  echo $((COUNT + 1)) > "$REFCOUNT_FILE"
+) 201>"$REF_LOCK"
 
 # Generate MAC address (QEMU OUI prefix)
 MAC_ADDR="$(generate_mac)"
@@ -222,26 +307,6 @@ QEMU_DEFAULT_ARGS=(
   "-usbdevice" "tablet"
   "-device" "virtio-balloon,deflate-on-oom=on,free-page-reporting=on"
   "-device" "vmgenid,guid=${NOMAD_ALLOC_ID}"
-)
-
-# Download image and create linked clone
-sleep $((${NOMAD_ALLOC_INDEX}*3))s
-while [ ! -f "$JOB_DIR/parent.qcow2" ]; do
-  if [ ! -f "$JOB_DIR/parent.qcow2.lock" ]; then
-    mkdir -p "$JOB_DIR"
-    touch "$JOB_DIR/parent.qcow2.lock"
-    echo "qemu-system-custom: Parent image $JOB_DIR/parent.qcow2 does not exist. Downloading..." >&2
-    curl -L -C - -o "$JOB_DIR/parent.qcow2.part" "$IMAGE_URL"
-    mv "$JOB_DIR/parent.qcow2.part" "$JOB_DIR/parent.qcow2"
-    rm "$JOB_DIR/parent.qcow2.lock"
-  else
-    echo "qemu-system-custom: Parent image does not exist. Waiting..." >&2
-    sleep 3s
-  fi
-done
-echo "qemu-system-custom: Creating differental image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" >&2
-qemu-img create -f qcow2 -F qcow2 -b "$JOB_DIR/parent.qcow2" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
-QEMU_DEFAULT_ARGS+=(
   "-device" "virtio-scsi-pci,id=scsi0,num_queues=8"
   "-blockdev" "driver=file,filename=${JOB_DIR}/diff.${NOMAD_ALLOC_ID}.qcow2,node-name=disk0"
   "-blockdev" "driver=qcow2,file=disk0,node-name=image0"
