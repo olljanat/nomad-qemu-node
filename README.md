@@ -33,3 +33,10 @@ Minimal OS to run QEMU VMs and orchestrate them with HashiCorp Nomad.
 # Upgrade
 1. Run command `elemental upgrade --reboot`
 2. Check version by running `grep IMAGE_TAG /etc/os-release`
+
+# Monitoring
+Following monitoring/troubleshooting tools are included to media:
+* `htop`
+* `perf kvm stat live`
+
+In additionally we enable Nomad [raw_exec](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/raw_exec) driver which allow you to deploy extra tools.

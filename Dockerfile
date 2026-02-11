@@ -37,6 +37,7 @@ RUN apt-get update \
     kmod \
     less \
     linux-image-amd64 \
+    linux-perf \
     lldpd \
     locales \
     lvm2 \
