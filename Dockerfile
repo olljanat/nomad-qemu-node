@@ -50,6 +50,7 @@ RUN apt-get update \
     openssh-server \
     parted \
     patch \
+    polkitd \
     psmisc \
     rsync \
     shim-signed \
@@ -67,6 +68,7 @@ RUN apt-get update \
     xz-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /etc/ssh/*key* \
     && echo > /etc/motd
 
 # Hack to prevent systemd-firstboot failures while setting keymap, this is known

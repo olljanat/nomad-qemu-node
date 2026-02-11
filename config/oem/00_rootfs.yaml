@@ -7,7 +7,7 @@ stages:
         path: "/oem"
   initramfs:
     - if: '[ ! -f "/run/elemental/recovery_mode" ]'
-      name: "Persist /etc/machine-id"
+      name: "Persist /etc/machine-id and SSH keys"
       commands:
       - |
         # persist machine-id
@@ -19,4 +19,14 @@ stages:
           fi
           mkdir -p /run/elemental/persistent/etc
           cp /etc/machine-id /run/elemental/persistent/etc
+        fi
+        # generate and persist ssh keys
+        if [ -s /run/elemental/persistent/etc/ssh/ssh_host_ed25519_key ]; then
+          cp /run/elemental/persistent/etc/ssh/ssh_host_ed25519_ke* /etc/ssh/
+        else
+          if ! [ -f /etc/ssh/ssh_host_ed25519_key ]; then
+            ssh-keygen -f /etc/ssh/ssh_host_ed25519_key -N '' -t ed25519
+          fi
+          mkdir -p /run/elemental/persistent/etc/ssh
+          cp /etc/ssh/ssh_host_ed25519_ke* /run/elemental/persistent/etc/ssh/
         fi
