@@ -177,7 +177,13 @@ while [[ $# -gt 0 ]]; do
       ;;
     -m)
       VM_MEM=$((${2/M/} - 1024))
-      EXTRA_ARGS+=("-m" "${VM_MEM}M")
+      EXTRA_ARGS+=("-m" "size=${VM_MEM}M,slots=256,maxmem=1024G")
+      shift 2
+      ;;
+    -smp)
+      CPU_COUNT="$2"
+      HOST_CPU_COUNT=$(nproc --all)
+      EXTRA_ARGS+=("-smp" "${2},maxcpus=${HOST_CPU_COUNT}")
       shift 2
       ;;
     --version)
