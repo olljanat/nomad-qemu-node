@@ -13,6 +13,7 @@ BOOT_TYPE="SECURE_BOOT"
 EXTRA_ARGS=()
 IMAGE_URL=""
 IMAGES_DIR="/data/images"
+VGA_DEVICE="VGA"
 VLAN=""
 
 # Functions
@@ -191,6 +192,10 @@ while [[ $# -gt 0 ]]; do
       /usr/bin/qemu-system-x86_64 -version
       exit 0
       ;;
+    -vga-device)
+      VGA_DEVICE="$2"
+      shift 2
+      ;;
     -vlan)
       VLAN="$2"
       shift 2
@@ -316,7 +321,7 @@ QEMU_DEFAULT_ARGS=(
   "-global" "ICH9-LPC.noreboot=off"
   "-global" "kvm-pit.lost_tick_policy=discard"
   "-rtc" "base=utc,clock=host,driftfix=slew"
-  "-device" "VGA"
+  "-device" "${VGA_DEVICE}"
   "-device" "nec-usb-xhci"
   "-device" "usb-tablet"
   "-audiodev" "none,id=audio1"
