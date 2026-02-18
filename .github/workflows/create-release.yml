@@ -73,7 +73,7 @@ jobs:
         echo "* [QEMU ${{ github.event.inputs.qemu_version }}](https://www.qemu.org)" >> release.md
         echo "* [QEMU wrapper script](https://github.com/${{ github.repository_owner }}/nomad-qemu-node/blob/${{ github.event.inputs.version }}/scripts/qemu-system-custom)" >> release.md
         echo "" >> release.md
-        echo "Upgrade image is available at \`ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}\`" >> release.md
+        echo "Upgrade/downgrade to this version with command: \`elemental upgrade --reboot --system oci:ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:${{ github.event.inputs.version }}\`" >> release.md
 
     - name: Create release
       uses: softprops/action-gh-release@v2
