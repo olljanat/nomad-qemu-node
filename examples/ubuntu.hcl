@@ -13,7 +13,7 @@ job "ubuntu" {
     task "vm" {
       driver = "qemu"
       config {
-        image_path   = "https://cloud-images.ubuntu.com/noble/20251213/noble-server-cloudimg-amd64.img"
+        image_path   = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
         emulator     = "qemu-system-custom"
         machine_type = "q35"
         accelerator  = "kvm"
