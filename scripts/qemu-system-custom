@@ -178,7 +178,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     -m)
       VM_MEM=$((${2/M/} - 1024))
-      EXTRA_ARGS+=("-m" "size=${VM_MEM}M,slots=256,maxmem=1024G")
+      MAX_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+      EXTRA_ARGS+=("-m" "size=${VM_MEM}M,slots=256,maxmem=${MAX_MEM}k")
       shift 2
       ;;
     -smp)
