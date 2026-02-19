@@ -117,6 +117,7 @@ RUN rm -f /etc/update-motd.d/10-help-text \
 COPY config/snapshotter.yaml /etc/elemental/config.d/snapshotter.yaml
 
 # Add configuration
+COPY config/bootargs.cfg /etc/elemental/
 COPY config/config.yaml /etc/elemental/
 
 # Generate initrd with required elemental services
