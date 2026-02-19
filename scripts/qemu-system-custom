@@ -177,9 +177,15 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -m)
-      VM_MEM=$((${2/M/} - 1024))
-      MAX_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-      EXTRA_ARGS+=("-m" "size=${VM_MEM}M,slots=256,maxmem=${MAX_MEM}k")
+      VM_MAX_MEM=$((${2/M/} - 1024))
+      VM_MIN_MEM=$VM_MAX_MEM
+      shift 2
+      ;;
+    -mem-min)
+      VM_MIN_MEM="$2"
+      DYN_MEM=$((${VM_MAX_MEM} - ${VM_MIN_MEM}))
+      EXTRA_ARGS+=("-object" "memory-backend-ram,id=ram,size=${DYN_MEM}M")
+      EXTRA_ARGS+=("-device" "virtio-mem-pci,id=vm0,memdev=ram,node=0,block-size=2M,requested-size=0")
       shift 2
       ;;
     -smp)
@@ -215,6 +221,8 @@ if [[ -z "$VLAN" ]]; then
   echo "qemu-system-custom: Parameter -vlan is mandantory" >&2
   exit
 fi
+HOST_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+EXTRA_ARGS+=("-m" "size=${VM_MIN_MEM}M,slots=256,maxmem=${HOST_MEM}k")
 TASK_DIR="/data/nomad/alloc/$NOMAD_ALLOC_ID/$NOMAD_TASK_NAME"
 case $BOOT_TYPE in
   SECURE_BOOT)    BOOT_TYPE_ARGS=("-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd" "-drive" "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd") ;;

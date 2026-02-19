@@ -18,6 +18,7 @@ job "windows" {
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
+          "-mem-min", "4096", # Enable dynamic memory between this and max memory configured in "resources" block
           "-smp", "8",
           "-vlan", "1002"
         ]

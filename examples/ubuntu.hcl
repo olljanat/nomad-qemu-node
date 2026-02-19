@@ -18,6 +18,7 @@ job "ubuntu" {
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
+          "-mem-min", "2048", # Enable dynamic memory between this and max memory configured in "resources" block
           "-smp", "4",
           "-vlan", "1001"
         ]
