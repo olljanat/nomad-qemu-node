@@ -125,6 +125,10 @@ COPY /config/99-raid-partlabel.rules /etc/udev/rules.d/
 COPY /config/mdadm.conf /etc/mdadm.conf
 RUN elemental --debug init -f
 
+# Include customized bootargs.cfg after elemental command
+# to make it available for GRUB
+COPY config/bootargs.cfg /etc/elemental/
+
 # Store version number
 ARG VERSION
 ENV VERSION=${VERSION}
