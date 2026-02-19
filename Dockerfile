@@ -35,6 +35,7 @@ RUN apt-get update \
     iputils-ping \
     kbd \
     kmod \
+    ksmtuned \
     less \
     linux-image-amd64 \
     linux-perf \
@@ -84,6 +85,7 @@ RUN curl -L https://mirrors.edge.kernel.org/pub/linux/utils/kbd/kbd-${KBD}.tar.x
 
 # Add module configs
 COPY /modprobe.d/* /etc/modprobe.d/
+COPY /modules-load.d/* /etc/modules-load.d/
 
 # Disable audit message spam to console
 RUN systemctl mask systemd-journald-audit.socket
@@ -99,6 +101,12 @@ COPY /elemental /usr/bin/elemental
 
 # Enable essential services
 RUN systemctl enable systemd-networkd.service
+
+## Source https://cdrdv2-public.intel.com/686407/kvm-tuning-guide-icx.pdf
+# 3.2.5. Enable Kernel Samepage Merging (KSM)
+# but do that through KSM Tuning Service
+# https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/virtualization_tuning_and_optimization_guide/chap-ksm
+RUN systemctl enable ksmtuned.service
 
 # Generate en_US.UTF-8 locale, this the locale set at boot by
 # the default cloud-init
@@ -157,6 +165,7 @@ COPY /config/nomad.d/* /usr/share/nomad/
 # Make sure that /data is mounted before starting Nomad
 COPY /systemd/* /usr/lib/systemd/system/
 RUN systemctl enable data.mount \
+    && systemctl enable kvm-tuning.service \
     && systemctl enable nomad.service \
     && systemctl enable qemu-ga-server.service \
     && systemctl enable qemu-vm-console.service

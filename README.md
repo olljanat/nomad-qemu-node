@@ -12,6 +12,10 @@ Minimal OS to run QEMU VMs and orchestrate them with HashiCorp Nomad.
 * Web based VM console access.
 * Run all VMs in UEFI mode with secure boot.
 * Ensure compatibility with Windows VMs.
+* Minimize host memory usage by:
+  * Enabling Kernel Same-page Merging (KSM).
+  * Supporting VMs memory dynamic scaling with virtio-mem driver.
+
 
 ### Not targets
 * Running VMs with persistent storage.
@@ -38,5 +42,6 @@ Minimal OS to run QEMU VMs and orchestrate them with HashiCorp Nomad.
 Following monitoring/troubleshooting tools are included to media:
 * `htop`
 * `perf kvm stat live`
+* `cat /sys/kernel/mm/ksm/general_profit` (bytes saved by Kernel Same-page Merging)
 
 In additionally we enable Nomad [raw_exec](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/raw_exec) driver which allow you to deploy extra tools.

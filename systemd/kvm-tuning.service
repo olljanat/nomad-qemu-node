@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply KVM performance tunings
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kvm-tuning.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
