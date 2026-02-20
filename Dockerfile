@@ -156,6 +156,7 @@ RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com trixie main" > /etc/apt/sources.list.d/hashicorp.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nomad=${NOMAD_VERSION} \
+    && nomad -autocomplete-install \
     && rm -rf /etc/nomad.d \
     && rm -rf /opt/nomad \
     && apt-get clean \
