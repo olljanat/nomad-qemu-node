@@ -244,7 +244,12 @@ sleep $((${NOMAD_ALLOC_INDEX}*3))s
 (
   flock -x 200 || { echo "qemu-system-custom: Waiting for image lock on $IMAGE_NAME..." >&2; flock -x 200; }
 
-  REMOTE_ETAG=$(curl -sI "$IMAGE_URL" | grep -i '^ETag:' | head -n1 | awk '{print $2}' | tr -d '\r')
+  if ! IMAGE_HEAD=$(curl --silent --head --fail "$IMAGE_URL"); then
+    echo "qemu-system-custom: URL $IMAGE_URL does not exist"
+    exit 1
+  fi
+
+  REMOTE_ETAG=$(echo "${IMAGE_HEAD[@]}" | grep -i '^ETag:' | head -n1 | awk '{print $2}' | tr -d '\r')
   [[ -z "$REMOTE_ETAG" ]] && REMOTE_ETAG="no-etag-$(date +%s)"
 
   CURRENT_ETAG=$(cat "$IMAGE_DIR/current.etag" 2>/dev/null || echo "")
@@ -252,17 +257,13 @@ sleep $((${NOMAD_ALLOC_INDEX}*3))s
   if [[ "$REMOTE_ETAG" != "$CURRENT_ETAG" ]] || [[ ! -f "$IMAGE_DIR/current_version.txt" ]]; then
     echo "qemu-system-custom: New version detected for $IMAGE_NAME (ETag changed). Downloading..." >&2
 
-    TEMP_FILE=$(mktemp "$IMAGE_DIR/download.XXXXXX")
-    curl -L -f -o "$TEMP_FILE" "$IMAGE_URL"
-
     ETAG_CLEAN=$(echo "$REMOTE_ETAG" | sed 's/"//g' | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '_')
     VERSION_BASENAME="${IMAGE_NAME}-${ETAG_CLEAN}.qcow2"
     VERSION_FILE="$IMAGE_DIR/$VERSION_BASENAME"
 
-    echo "qemu-system-custom: Converting to qcow2..." >&2
-    qemu-img convert -q -O qcow2 "$TEMP_FILE" "$VERSION_FILE"
+    TEMP_FILE=$(mktemp "$IMAGE_DIR/download.XXXXXX")
+    curl -L -f -o "$VERSION_FILE" "$IMAGE_URL"
 
-    rm -f "$TEMP_FILE"
     echo "$REMOTE_ETAG" > "$IMAGE_DIR/current.etag"
     echo "$VERSION_BASENAME" > "$IMAGE_DIR/current_version.txt"
     ln -sf "$VERSION_FILE" "$IMAGE_DIR/latest.qcow2"  # optional, for inspection
