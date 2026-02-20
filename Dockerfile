@@ -72,6 +72,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /etc/ssh/*key* \
     && echo > /etc/motd
+COPY /config/.vimrc /root/.vimrc
 
 # Hack to prevent systemd-firstboot failures while setting keymap, this is known
 # Debian issue (T_T) https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790955
