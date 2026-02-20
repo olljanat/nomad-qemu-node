@@ -107,6 +107,7 @@ RUN systemctl enable systemd-networkd.service
 # but do that through KSM Tuning Service
 # https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/virtualization_tuning_and_optimization_guide/chap-ksm
 RUN systemctl enable ksmtuned.service
+COPY /config/ksmtuned.conf /etc/ksmtuned.conf
 
 # Generate en_US.UTF-8 locale, this the locale set at boot by
 # the default cloud-init
