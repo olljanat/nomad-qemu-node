@@ -13,7 +13,7 @@ job "windows" {
     task "win" {
       driver = "qemu"
       config {
-        image_path   = "http://<server.domain>/windows-server-2025.qcow2"
+        image_path   = "http://<server.domain>/<version>/windows-server-2025.qcow2"
         emulator     = "qemu-system-custom"
         machine_type = "q35"
         accelerator  = "kvm"
