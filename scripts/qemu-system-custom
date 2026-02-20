@@ -324,7 +324,9 @@ mkdir -p /tmp/vnc
 QEMU_DEFAULT_ARGS=(
   "-name" "$VM_NAME"
   "-cpu" "host,hv-passthrough=on"
-  "-machine" "type=q35,accel=kvm,usb=off,smm=on,dump-guest-core=off,mem-merge=on,hpet=off"
+  "-machine" "type=q35,accel=kvm,usb=off,smm=on,dump-guest-core=off,mem-merge=on,memory-backend=mem0,hpet=off"
+  "-object" "memory-backend-memfd,id=mem0,share=on,merge=on,size=${VM_MIN_MEM}M"
+  "-device" "virtio-balloon-pci,id=balloon0,deflate-on-oom=on,free-page-reporting=on"
   "-no-user-config"
   "-nodefaults"
   "-global" "ICH9-LPC.disable_s3=1"
