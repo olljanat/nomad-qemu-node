@@ -342,7 +342,7 @@ QEMU_DEFAULT_ARGS=(
   "-device" "virtio-scsi-pci,id=scsi0,num_queues=8"
   "-blockdev" "driver=file,filename=${JOB_DIR}/diff.${NOMAD_ALLOC_ID}.qcow2,node-name=disk0"
   "-blockdev" "driver=qcow2,file=disk0,node-name=image0"
-  "-device" "scsi-hd,drive=image0,bus=scsi0.0"
+  "-device" "scsi-hd,drive=image0,bus=scsi0.0,lun=0"
 )
 
 # Add OpenStack compatible "config-2" drive for VM if "config-drive" folder exist.
