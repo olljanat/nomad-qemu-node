@@ -35,7 +35,6 @@ RUN apt-get update \
     iputils-ping \
     kbd \
     kmod \
-    ksmtuned \
     less \
     linux-image-amd64 \
     linux-perf \
@@ -102,12 +101,6 @@ COPY /elemental /usr/bin/elemental
 
 # Enable essential services
 RUN systemctl enable systemd-networkd.service
-
-## Source https://cdrdv2-public.intel.com/686407/kvm-tuning-guide-icx.pdf
-# 3.2.5. Enable Kernel Samepage Merging (KSM)
-# but do that through KSM Tuning Service
-# https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/virtualization_tuning_and_optimization_guide/chap-ksm
-RUN systemctl enable ksmtuned.service
 
 # Generate en_US.UTF-8 locale, this the locale set at boot by
 # the default cloud-init
