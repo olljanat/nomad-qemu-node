@@ -34,7 +34,6 @@ TOOL=blkdeactivate
 DEV_DIR="/dev"
 SYS_BLK_DIR="/sys/block"
 
-MDADM="/sbin/mdadm"
 MOUNTPOINT="/bin/mountpoint"
 MPATHD="/sbin/multipathd"
 UMOUNT="/bin/umount"
@@ -53,7 +52,6 @@ else
 fi
 DMSETUP_OPTS=""
 LVM_OPTS=""
-MDADM_OPTS=""
 MPATHD_OPTS=""
 VDO_OPTS=""
 
@@ -287,43 +285,6 @@ deactivate_lvm () {
 	fi
 }
 
-deactivate_md () {
-	local xname
-	xname=$(printf "%s" "$name")
-	local sync_action
-	test -b "$DEV_DIR/$xname" || return 0
-	test -z "${SKIP_DEVICE_LIST["$kname"]}" || return 1
-
-	# Skip MD device deactivation if MD tools missing.
-	test "$MDADM_AVAILABLE" -eq 0 && {
-		add_device_to_skip_list
-		return 1
-	}
-
-	deactivate_holders "$DEV_DIR/$xname" || return 1
-
-	echo -n "  [MD]: deactivating $devtype device $kname... "
-
-	test "$MDRAID_DO_WAIT" -eq 1 && {
-		sync_action=$(cat "$SYS_BLK_DIR/$kname/md/sync_action")
-		test "$sync_action" != "idle" && {
-			echo -n "$sync_action action in progress... "
-			if eval "$MDADM" $MDADM_OPTS -W "$DEV_DIR/$kname" "$OUT" "$ERR"; then
-				echo -n "complete... "
-			else
-				test $? -ne 1 && echo -n "failed to wait for $sync_action action... "
-			fi
-		}
-	}
-
-	if eval "$MDADM" $MDADM_OPTS -S "$xname" "$OUT" "$ERR"; then
-		echo "done"
-	else
-		echo "skipping"
-		add_device_to_skip_list
-	fi
-}
-
 deactivate_vdo() {
         local xname
         xname=$(printf "%s" "$name")
@@ -367,8 +328,6 @@ deactivate () {
                 deactivate_vdo
 	elif test "${kname:0:3}" = "dm-"; then
 		deactivate_dm
-	elif test "${kname:0:2}" = "md"; then
-		deactivate_md
 	fi
 }
 
@@ -535,7 +494,6 @@ set_env() {
 		UMOUNT_OPTS+="-v"
 		DMSETUP_OPTS+="-vvvv"
 		LVM_OPTS+="-vvvv"
-		MDADM_OPTS+="-vv"
 		MPATHD_OPTS+="-v 3"
                 VDO_OPTS+="--verbose "
 	else
@@ -546,12 +504,6 @@ set_env() {
 		LVM_AVAILABLE=1
 	else
 		LVM_AVAILABLE=0
-	fi
-
-	if test -f $MDADM; then
-		MDADM_AVAILABLE=1
-	else
-		MDADM_AVAILABLE=0
 	fi
 
         if test -f $VDO; then
