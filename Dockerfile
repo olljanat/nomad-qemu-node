@@ -70,6 +70,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /etc/ssh/*key* \
+    && rm -rf /etc/mdadm \
+    && rm -rf /boot/initrd.img* \
     && echo > /etc/motd
 COPY /config/.vimrc /root/.vimrc
 
@@ -118,6 +120,9 @@ COPY config/snapshotter.yaml /etc/elemental/config.d/snapshotter.yaml
 COPY config/config.yaml /etc/elemental/
 
 # Generate initrd with required elemental services
+COPY /config/50-elemental-initrd.conf /etc/dracut.conf.d/
+COPY /config/99-raid-partlabel.rules /etc/udev/rules.d/
+COPY /config/mdadm.conf /etc/mdadm.conf
 RUN elemental --debug init -f
 
 # Store version number
