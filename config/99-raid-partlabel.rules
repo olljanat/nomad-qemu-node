@@ -1,0 +1,2 @@
+# Make RAID partitions available in by-partlabel
+KERNEL=="md*[0-9]", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", IMPORT{program}="/usr/sbin/blkid -o udev -p $devnode", SYMLINK+="disk/by-partlabel/$env{ID_PART_ENTRY_NAME}"
