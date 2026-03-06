@@ -1,4 +1,12 @@
-## Example of K3s high-availability cluster where OS disk is stateless but Kubernetes data persistent in /data
+# Example of K3s high-availability cluster where OS disk is stateless but Kubernetes data persistent in /data
+# Additionally this example uses PCI passthrough for SCSI controller which allow storage cluster
+# to be hosted inside of Kubernetes.
+#
+#### Preparation:
+# Find device IDs: lspci -nnk | grep "SCSI"
+# Add kernel parameters which make sure that those are available as /dev/vfio/* instead of reserved by host OS:
+# grub2-editenv /oem/grubenv set extra_cmdline="modprobe.blacklist=mpt3sas vfio-pci.ids=1000:0097"
+#
 # Create persistent disk for each node with command like:
 # qemu-img create -f qcow2 k3s-s1-data.qcow2 100G
 # and adjust -drive parameter matching to that.
@@ -6,6 +14,7 @@
 # Create Nomad variable "nomad/jobs/k3s" with following values:
 # * "K3sNodePwdSuffix" which should be random combination of letters and numbers without special characters
 # * "K3sToken" copies from first node file /data/k3s/server/token
+#
 job "k3s" {
   group "s1" {
     constraint {
@@ -32,7 +41,10 @@ job "k3s" {
           "-vlan", "502",
           # Persistent /data disk
           "-drive", "file=/data/persistent/k3s-s1-data.qcow2,if=none,id=image1,format=qcow2",
-          "-device", "scsi-hd,drive=image1,bus=scsi0.0,lun=1"
+          "-device", "scsi-hd,drive=image1,bus=scsi0.0,lun=1",
+          # Passthrough SCSI controllers with all the disks
+          "-device", "vfio-pci,host=0000:d8:00.0",
+          "-device", "vfio-pci,host=0000:d9:00.0"
         ]
         graceful_shutdown = true
         guest_agent = true
@@ -164,7 +176,10 @@ EOF
           "-vlan", "502",
           # Persistent /data disk
           "-drive", "file=/data/persistent/k3s-s2-data.qcow2,if=none,id=image1,format=qcow2",
-          "-device", "scsi-hd,drive=image1,bus=scsi0.0"
+          "-device", "scsi-hd,drive=image1,bus=scsi0.0,lun=1",
+          # Passthrough SCSI controllers with all the disks
+          "-device", "vfio-pci,host=0000:d8:00.0",
+          "-device", "vfio-pci,host=0000:d9:00.0"
         ]
         graceful_shutdown = true
         guest_agent = true
@@ -291,7 +306,10 @@ EOF
           "-vlan", "502",
           # Persistent /data disk
           "-drive", "file=/data/persistent/k3s-s3-data.qcow2,if=none,id=image1,format=qcow2",
-          "-device", "scsi-hd,drive=image1,bus=scsi0.0"
+          "-device", "scsi-hd,drive=image1,bus=scsi0.0,lun=1",
+          # Passthrough SCSI controllers with all the disks
+          "-device", "vfio-pci,host=0000:d8:00.0",
+          "-device", "vfio-pci,host=0000:d9:00.0"
         ]
         graceful_shutdown = true
         guest_agent = true

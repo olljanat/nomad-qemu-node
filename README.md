@@ -49,7 +49,7 @@ mdadm --create --verbose /dev/md0 \
 > mkfs.ext4 -L DATA /dev/md0p6
 > mount LABEL=DATA /data
 > ```
-> That is useful when you want to use [PCI passthrough](https://pve.proxmox.com/wiki/PCI_Passthrough) for complete disk controller with all the disks.
+> That is useful when you want to use [PCI passthrough](https://pve.proxmox.com/wiki/PCI_Passthrough) for complete SCSI controller with all the disks.
 7. Copy example configs `mkdir /data/config && cp /usr/share/nomad/* /data/config/`
 8. Configure Nomad by either:
      - Create/import [Nomad TLS certificates](https://developer.hashicorp.com/nomad/docs/secure/traffic/tls) and [bootstrap ACLs](https://developer.hashicorp.com/nomad/docs/secure/acl/bootstrap) (or disable security by removing `/data/config/security.hcl`)
