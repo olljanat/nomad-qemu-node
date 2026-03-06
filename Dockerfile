@@ -51,6 +51,7 @@ RUN apt-get update \
     openssh-server \
     parted \
     patch \
+    pciutils \
     polkitd \
     psmisc \
     rsync \
