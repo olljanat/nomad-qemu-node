@@ -12,3 +12,14 @@ mount --bind /run /sysroot/run
 * See boot logs with command: `journalctl -xe`
 
 Look: https://rancher.github.io/elemental-toolkit/docs/reference/troubleshooting/#debug-initramfs-issues
+
+## Reinstall
+> [!CAUTION]
+> These commands will remove all existing data from system.
+```bash
+systemctl stop nomad
+umount /data
+mdadm --stop /dev/mdX # Repeat for all md devices
+blkdeactivate
+wipefs -a /dev/sdX # Repeat for all disks
+```

@@ -21,7 +21,9 @@ Minimal OS to run QEMU VMs and orchestrate them with HashiCorp Nomad.
 ## Install
 1. Boot from ISO (username: `root` , password: `elemental`)
 2. Create IP reservation to DHCP and set hostname (option 12).
-3. Create mirrored RAID volume for OS (**NOTE** uuid must be exactly that):
+3. Create mirrored RAID volume for OS (or skip it if you have hardware RAID controller):
+> [!IMPORTANT]
+> UUID `e0979e44:ad38:4165:9aa2:cf2dd13b0de7` is hardcoded in mdadm.conf and expected by boot process.
 ```bash
 mdadm --create --verbose /dev/md0 \
   --level=1 \
@@ -34,6 +36,20 @@ mdadm --create --verbose /dev/md0 \
 4. Wait mirroring to be ready: `mdadm --wait /dev/md0`
 5. Install by running command: `elemental install /dev/md0`
 6. Format and mount data drive `mkfs.ext4 -L DATA /dev/sdX && mount LABEL=DATA /data`
+> [!TIP]
+> It is also possible to use last partition of OS drive as DATA partition like this:
+> ```bash
+> # Remove and create COS_PERSISTENT partition as size of 10GB instead of all free space.
+> fdisk /dev/md0 # d -> 5 , n -> 5 -> (default) -> +10G
+> mkfs.ext4 -L COS_PERSISTENT /dev/md0p5
+> gdisk /dev/md0 # c -> 5 -> persistent -> w
+> 
+> # Add DATA partition
+> fdisk /dev/md0 # n -> 6 -> (default) -> use all
+> mkfs.ext4 -L DATA /dev/md0p6
+> mount LABEL=DATA /data
+> ```
+> That is useful when you want to use [PCI passthrough](https://pve.proxmox.com/wiki/PCI_Passthrough) for complete disk controller with all the disks.
 7. Copy example configs `mkdir /data/config && cp /usr/share/nomad/* /data/config/`
 8. Configure Nomad by either:
      - Create/import [Nomad TLS certificates](https://developer.hashicorp.com/nomad/docs/secure/traffic/tls) and [bootstrap ACLs](https://developer.hashicorp.com/nomad/docs/secure/acl/bootstrap) (or disable security by removing `/data/config/security.hcl`)
