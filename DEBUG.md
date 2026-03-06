@@ -23,3 +23,11 @@ mdadm --stop /dev/mdX # Repeat for all md devices
 blkdeactivate
 wipefs -a /dev/sdX # Repeat for all disks
 ```
+
+## PCI passthrough without hardware support
+If your server does not support [IRQ remapping](https://pve.proxmox.com/wiki/PCI_Passthrough#Verify_IOMMU_interrupt_remapping_is_enabled). You can allow unsafe interrupts with these commands:
+```bash
+rmmod vfio_iommu_type1
+modprobe vfio_iommu_type1 allow_unsafe_interrupts=1
+cat /sys/module/vfio_iommu_type1/parameters/allow_unsafe_interrupts
+```
