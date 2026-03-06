@@ -1,5 +1,6 @@
 [Unit]
 Description=Mount /data
+After=network.target
 
 [Mount]
 Where=/data
