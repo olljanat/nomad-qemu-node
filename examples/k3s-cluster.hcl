@@ -36,6 +36,7 @@ job "k3s" {
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
+          "-image-resize", "50G", # Extend OS disk to 50GB
           "-mem-min", "4092", # Enable dynamic memory between this and max memory configured in "resources" block
           "-smp", "4",
           "-vlan", "502",
@@ -171,6 +172,7 @@ EOF
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
+          "-image-resize", "50G", # Extend OS disk to 50GB
           "-mem-min", "4092", # Enable dynamic memory between this and max memory configured in "resources" block
           "-smp", "4",
           "-vlan", "502",
@@ -301,6 +303,7 @@ EOF
         machine_type = "q35"
         accelerator  = "kvm"
         args = [
+          "-image-resize", "50G", # Extend OS disk to 50GB
           "-mem-min", "4092", # Enable dynamic memory between this and max memory configured in "resources" block
           "-smp", "4",
           "-vlan", "502",

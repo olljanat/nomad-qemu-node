@@ -11,6 +11,7 @@ set -euo pipefail
 CHILD=""
 BOOT_TYPE="SECURE_BOOT"
 EXTRA_ARGS=()
+IMAGE_RESIZE=""
 IMAGE_URL=""
 IMAGES_DIR="/data/images"
 VGA_DEVICE="VGA"
@@ -169,6 +170,10 @@ while [[ $# -gt 0 ]]; do
 
       shift 2
       ;;
+    -image-resize)
+      IMAGE_RESIZE="$2"
+      shift 2
+      ;;
     -name)
       VM_NAME="${NOMAD_JOB_NAME}-${NOMAD_GROUP_NAME}-${NOMAD_ALLOC_INDEX}"
       shift 2
@@ -275,7 +280,7 @@ PARENT_FILE="$IMAGE_DIR/$CURRENT_VERSION"
 
 # === Create differential image ===
 echo "qemu-system-custom: Creating differential image $JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2 backed by $PARENT_FILE" >&2
-qemu-img create -q -f qcow2 -F qcow2 -b "$PARENT_FILE" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2"
+qemu-img create -q -f qcow2 -F qcow2 -b "$PARENT_FILE" "$JOB_DIR/diff.$NOMAD_ALLOC_ID.qcow2" $IMAGE_RESIZE
 
 # Record parent for cleanup/refcount
 echo "$PARENT_FILE" > "$JOB_DIR/diff.$NOMAD_ALLOC_ID.parent"
