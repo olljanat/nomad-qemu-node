@@ -304,6 +304,11 @@ TAP_IF="tap-${RANDHEX}"
 # Handle cleanup after exit
 trap 'cleanup' 0
 
+# Make sure that VLAN Filtering is enabled to bridge 
+if [ "$(cat /sys/class/net/br0/bridge/vlan_filtering)" != "1" ]; then
+  ip link set br0 type bridge vlan_filtering 1
+fi
+
 # Make sure that bond0 has access to VLAN
 bridge vlan add dev bond0 vid "$VLAN" master
 
