@@ -151,6 +151,8 @@ RUN mkdir -p /usr/lib/elemental/bootloader && \
 # Add QEMU
 COPY /scripts/* /usr/local/bin/
 COPY /vm-console/qemu-vm-console /usr/local/bin/
+COPY /fleet-client/fleet-client /usr/bin/
+COPY /fleet-client/fleet-client.env /usr/share/fleet-client/fleet-client.env.example
 RUN apt-get update \
     && apt-get install -y novnc qemu-system-x86 \
     && apt-get clean \
@@ -175,6 +177,7 @@ COPY /config/nomad.d/* /usr/share/nomad/
 # Make sure that /data is mounted before starting Nomad
 COPY /systemd/* /usr/lib/systemd/system/
 RUN systemctl enable data.mount \
+    && systemctl enable fleet-client.service \
     && systemctl enable kvm-tuning.service \
     && systemctl enable nomad.service \
     && systemctl enable qemu-ga-server.service \

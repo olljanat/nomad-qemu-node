@@ -1,5 +1,6 @@
 release.md
 rootfs
 vm-console/qemu-vm-console
+fleet-client/fleet-client
 *.iso
 *.sha256

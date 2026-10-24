@@ -40,6 +40,13 @@ jobs:
         go build
         chmod 0755 qemu-vm-console
 
+    - name: Build fleet client
+      run: |
+        cd fleet-client
+        go test ./...
+        CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.Version=${{ github.event.inputs.version }}" -o fleet-client
+        chmod 0755 fleet-client
+
     - name: Build installer
       run: |
         git tag ${{ github.event.inputs.version }}
