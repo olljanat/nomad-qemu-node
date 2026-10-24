@@ -9,7 +9,7 @@ on:
         required: true
       nomad_version:
         description: 'HashiCorp Nomad version'
-        default: '1.11.3-1'
+        default: '2.0.7-1'
         required: true
 jobs:
   build:
@@ -68,7 +68,7 @@ jobs:
         git push origin ${{ github.event.inputs.version }}
         echo "# Release ${{ github.event.inputs.version }}" > release.md
         echo "The release contains the following components:" >> release.md
-        echo "* [Debian 13 "trixie"](https://www.debian.org)" >> release.md
+        echo "* [Ubuntu 26.04 LTS](https://ubuntu.com)" >> release.md
         echo "* [HashiCorp Nomad ${{ github.event.inputs.nomad_version }}](https://developer.hashicorp.com/nomad)" >> release.md
         echo "* [QEMU ${{ github.event.inputs.qemu_version }}](https://www.qemu.org)" >> release.md
         echo "* [QEMU wrapper script](https://github.com/${{ github.repository_owner }}/nomad-qemu-node/blob/${{ github.event.inputs.version }}/scripts/qemu-system-custom)" >> release.md
