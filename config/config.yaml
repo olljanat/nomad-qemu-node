@@ -5,4 +5,7 @@ install:
       size: 20480
 
 upgrade:
+  # Always replace shim and GRUB from the new image, otherwise Secure Boot
+  # can reject the new kernel when its signing key changes (e.g. Debian -> Ubuntu)
+  bootloader: true
   system: oci:ghcr.io/olljanat/nomad-qemu-node:latest
