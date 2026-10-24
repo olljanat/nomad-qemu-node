@@ -1,5 +1,5 @@
 # OS base image of our choice
-FROM debian:13 AS os
+FROM ubuntu:26.04 AS os
 
 # install kernel, systemd, dracut, grub2 and other required tools
 RUN apt-get update \
@@ -18,7 +18,6 @@ RUN apt-get update \
     dracut-core \
     dracut-live \
     dracut-network \
-    dracut-squash \
     e2fsprogs \
     eject \
     findutils \
@@ -36,7 +35,7 @@ RUN apt-get update \
     kbd \
     kmod \
     less \
-    linux-image-amd64 \
+    linux-image-generic \
     linux-perf \
     lldpd \
     locales \
@@ -77,7 +76,7 @@ RUN apt-get update \
 COPY /config/.vimrc /root/.vimrc
 
 # Hack to prevent systemd-firstboot failures while setting keymap, this is known
-# Debian issue (T_T) https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790955
+# Debian/Ubuntu issue (T_T) https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=790955
 ARG KBD=2.6.4
 RUN curl -L https://mirrors.edge.kernel.org/pub/linux/utils/kbd/kbd-${KBD}.tar.xz --output kbd-${KBD}.tar.xz \
     && tar xaf kbd-${KBD}.tar.xz \
@@ -85,6 +84,10 @@ RUN curl -L https://mirrors.edge.kernel.org/pub/linux/utils/kbd/kbd-${KBD}.tar.x
     && cp -Rp kbd-${KBD}/data/keymaps/* /usr/share/keymaps/ \
     && rm kbd-${KBD}.tar.xz \
     && mkdir /data
+
+# Remove default user
+RUN userdel ubuntu \
+    && rm -rf /home/ubuntu
 
 # Add module configs
 COPY /modprobe.d/* /etc/modprobe.d/
@@ -142,7 +145,7 @@ COPY /config/oem/ /system/oem/
 # this way elemental installer can easily fetch them
 RUN mkdir -p /usr/lib/elemental/bootloader && \
     cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /usr/lib/elemental/bootloader/grubx64.efi && \
-    cp /usr/lib/shim/shimx64.efi.signed /usr/lib/elemental/bootloader/shimx64.efi && \
+    cp /usr/lib/shim/shimx64.efi.signed.latest /usr/lib/elemental/bootloader/shimx64.efi && \
     cp /usr/lib/shim/mmx64.efi /usr/lib/elemental/bootloader/mmx64.efi
 
 # Add QEMU
@@ -154,10 +157,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Add HashiCorp Nomad
+# HashiCorp packages are static binaries, so the Ubuntu 24.04 (noble) repository
+# works on 26.04 too until HashiCorp publishes a resolute repository
 ARG NOMAD_VERSION=unknown
 RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
     gpg --dearmor > /usr/share/keyrings/hashicorp-archive-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com trixie main" > /etc/apt/sources.list.d/hashicorp.list \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com noble main" > /etc/apt/sources.list.d/hashicorp.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nomad=${NOMAD_VERSION} \
     && nomad -autocomplete-install \
