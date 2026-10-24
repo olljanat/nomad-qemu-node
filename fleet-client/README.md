@@ -84,6 +84,17 @@ Requires BurFleet with Nomad QEMU node support.
 
 The service only starts when `/data/config/fleet-client.env` exists.
 
+### Existing installations
+
+Nodes installed from an older release (also the Debian 13 based ones, with or
+without Secure Boot) can be connected and upgraded in one go with
+[onboard.sh](onboard.sh). Create the Nomad token of step 1 once, fill in the
+settings at the top of the script and paste it to a root shell of each node.
+It checks that BurFleet and the Nomad token work, writes
+`/data/config/fleet-client.env`, drains the node in Nomad, upgrades with
+`elemental upgrade --bootloader` and reboots. fleet-client starts on the
+first boot of the new image and makes the node eligible again.
+
 | Variable                     | Default              | Description |
 |------------------------------|----------------------|-------------|
 | `FLEET_MANAGER_URL`          |                      | BurFleet address (required) |
