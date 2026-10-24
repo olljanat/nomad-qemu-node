@@ -24,8 +24,10 @@ On every check interval (from BurFleet, 5 minutes by default) it:
      1. drains the node in Nomad (`nomad node drain -self -enable
         -ignore-system`), so the VMs are rescheduled to other nodes, and
         waits until the drain is done (`FLEET_NOMAD_DRAIN_DEADLINE`),
-     2. upgrades with `elemental upgrade --system oci:<os_image>:<os_version>`
-        (OS upgrade) and reboots, or just reboots (scheduled restart),
+     2. upgrades with `elemental upgrade --bootloader --system
+        oci:<os_image>:<os_version>` (OS upgrade; `--bootloader` keeps the
+        Secure Boot shim and GRUB in sync with the new image) and reboots,
+        or just reboots (scheduled restart),
      3. after the boot makes the node eligible for scheduling again.
 
      BurFleet releases the lock once the node reports the target version

@@ -326,7 +326,10 @@ func upgrade(image string, extra []string) error {
 	if err := run("mount", "-o", "remount,rw", "/.snapshots"); err != nil {
 		log.Printf("remount /.snapshots: %v", err)
 	}
-	args := append([]string{"upgrade", "--system", "oci:" + image}, extra...)
+	// --bootloader replaces shim and GRUB on the EFI partition with the
+	// ones of the new image. Without it Secure Boot keeps the old signed
+	// bootloader, which can reject the new kernel (Debian -> Ubuntu).
+	args := append([]string{"upgrade", "--bootloader", "--system", "oci:" + image}, extra...)
 	return run("elemental", args...)
 }
 
