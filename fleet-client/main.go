@@ -90,6 +90,8 @@ type Report struct {
 	Message       string       `json:"message"`
 	Nomad         *NomadStatus `json:"nomad,omitempty"`
 	SSH           *SSH         `json:"ssh,omitempty"`
+	// RAID is omitted when the node has no software RAID arrays.
+	RAID []RAIDArray `json:"raid,omitempty"`
 }
 
 type client struct {
@@ -418,6 +420,7 @@ func (c *client) collect() *Report {
 		State:         c.state,
 		Message:       c.msg,
 		SSH:           c.sshState,
+		RAID:          raidStatus(),
 	}
 	st, err := nomadStatus()
 	msg := ""
