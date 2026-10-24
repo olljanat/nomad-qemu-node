@@ -1,0 +1,20 @@
+[Unit]
+Description=BurFleet client
+Documentation=https://github.com/olljanat/nomad-qemu-node/tree/master/fleet-client
+Requires=data.mount
+After=data.mount network-online.target nomad.service
+Wants=network-online.target
+ConditionPathExists=/data/config/fleet-client.env
+
+[Service]
+User=root
+Group=root
+
+Type=simple
+EnvironmentFile=/data/config/fleet-client.env
+ExecStart=/usr/bin/fleet-client
+Restart=always
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

@@ -62,6 +62,11 @@ mdadm --create --verbose /dev/md0 \
 1. Run command `mount -o remount,rw /.snapshots && elemental upgrade --reboot`
 2. Check version by running `grep IMAGE_TAG /etc/os-release`
 
+## Fleet upgrades with BurFleet
+Nodes can report their OS, QEMU and Nomad versions to [BurFleet](https://github.com/burmilla/os-fleet-manager)
+and get upgraded and restarted by it, one node at a time inside a maintenance window, with the node drained in Nomad
+first. See [fleet-client](/fleet-client) for the setup.
+
 # Monitoring
 Following monitoring/troubleshooting tools are included to media:
 * `htop`
