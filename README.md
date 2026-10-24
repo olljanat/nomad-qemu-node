@@ -70,7 +70,8 @@ mdadm --create --verbose /dev/md0 \
 ## Fleet upgrades with BurFleet
 Nodes can report their OS, QEMU and Nomad versions to [BurFleet](https://github.com/burmilla/os-fleet-manager)
 and get upgraded and restarted by it, one node at a time inside a maintenance window, with the node drained in Nomad
-first. See [fleet-client](/fleet-client) for the setup.
+first. See [fleet-client](/fleet-client) for the setup, and
+[onboard.sh](/fleet-client/onboard.sh) for connecting and upgrading existing installations in one step.
 
 # Monitoring
 Following monitoring/troubleshooting tools are included to media:
