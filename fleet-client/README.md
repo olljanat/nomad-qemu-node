@@ -12,8 +12,11 @@ On every check interval (from BurFleet, 5 minutes by default) it:
    version (`IMAGE_TAG` in `/etc/os-release`), kernel, QEMU and Nomad
    versions, boot time and the status of the local Nomad client node
    (status, scheduling eligibility, drain and the number of running
-   allocations). The report says `node_type: nomad-qemu-node`, so BurFleet
-   does not apply BurmillaOS settings to the node.
+   allocations) and the software RAID arrays from `/proc/mdstat` (level,
+   state, expected / in-sync devices, failed and spare devices and a
+   running rebuild, resync or check with its progress). The report says
+   `node_type: nomad-qemu-node`, so BurFleet does not apply BurmillaOS
+   settings to the node.
 2. Gets back the target OS image and version, upgrade policy, maintenance
    window and whether a scheduled restart is due.
 3. Depending on `upgrade_policy`:
@@ -55,7 +58,8 @@ On every check interval (from BurFleet, 5 minutes by default) it:
    `/root` and `/etc/ssh` are persistent, so the settings survive upgrades.
    Make sure the keys work before disabling password logins.
 
-Requires BurFleet with Nomad QEMU node support.
+Requires BurFleet with Nomad QEMU node support, v1.3.0 or newer to see the
+software RAID status (older versions ignore it).
 
 ## Enable
 

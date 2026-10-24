@@ -123,3 +123,43 @@ func TestResumeWithoutMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestParseMdstat(t *testing.T) {
+	mdstat := `Personalities : [raid1] [raid0] [linear]
+md0 : active raid1 sdb2[1] sda2[0]
+      976630464 blocks super 1.2 [2/2] [UU]
+      bitmap: 1/8 pages [4KB], 65536KB chunk
+
+md1 : active raid1 sdc1[2] sdb3[1](F) sda3[0]
+      104792064 blocks super 1.2 [2/1] [U_]
+      [==>..................]  recovery = 12.6% (13204224/104792064) finish=8.1min speed=187416K/sec
+
+md2 : active (auto-read-only) raid1 sdd1[1] sde1[0] sdf1[2](S)
+      1046528 blocks super 1.2 [2/2] [UU]
+      	resync=PENDING
+
+md3 : active raid0 sdg1[1] sdh1[0]
+      2093056 blocks super 1.2 512k chunks
+
+md127 : inactive sdi1[0](S)
+      1046528 blocks super 1.2
+
+unused devices: <none>
+`
+	want := []RAIDArray{
+		{Name: "md0", Level: "raid1", State: "active", Devices: 2, ActiveDevices: 2},
+		{Name: "md1", Level: "raid1", State: "active", Devices: 2, ActiveDevices: 1, Degraded: true,
+			FailedDevices: []string{"sdb3"}, SyncAction: "recovery", SyncProgress: 12.6},
+		{Name: "md2", Level: "raid1", State: "active", ReadOnly: true, Devices: 2, ActiveDevices: 2,
+			SpareDevices: []string{"sdf1"}, SyncAction: "resync"},
+		{Name: "md3", Level: "raid0", State: "active", Devices: 2, ActiveDevices: 2},
+		{Name: "md127", State: "inactive", SpareDevices: []string{"sdi1"}},
+	}
+	got := parseMdstat(mdstat)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got\n%+v\nwant\n%+v", got, want)
+	}
+	if got := parseMdstat("Personalities : \nunused devices: <none>\n"); len(got) != 0 {
+		t.Fatalf("no arrays: %+v", got)
+	}
+}
