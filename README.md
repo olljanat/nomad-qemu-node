@@ -59,7 +59,12 @@ mdadm --create --verbose /dev/md0 \
 11. Connect to `http://<server IP>:5800` to connect VM console.
 
 # Upgrade
-1. Run command `mount -o remount,rw /.snapshots && elemental upgrade --reboot`
+1. Run command `mount -o remount,rw /.snapshots && elemental upgrade --bootloader --reboot`
+
+> [!NOTE]
+> `--bootloader` replaces shim and GRUB on the EFI partition with the ones from the new image.
+> It is required with Secure Boot when upgrading from the Debian 13 based releases to Ubuntu 26.04,
+> otherwise the old Debian shim rejects the Ubuntu kernel and the node falls back to the passive partition.
 2. Check version by running `grep IMAGE_TAG /etc/os-release`
 
 # Monitoring
