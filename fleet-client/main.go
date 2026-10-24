@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -61,6 +62,7 @@ type Desired struct {
 	MaintenanceWindowNext   string   `json:"maintenance_window_next_start"`
 	MaintenanceRequired     bool     `json:"maintenance_required"`
 	MaintenanceReasons      []string `json:"maintenance_reasons"`
+	SSH                     SSH      `json:"ssh"`
 }
 
 // NomadStatus is the state of the local Nomad client node.
@@ -87,6 +89,7 @@ type Report struct {
 	State         string       `json:"state"`
 	Message       string       `json:"message"`
 	Nomad         *NomadStatus `json:"nomad,omitempty"`
+	SSH           *SSH         `json:"ssh,omitempty"`
 }
 
 type client struct {
@@ -113,6 +116,9 @@ type client struct {
 	// done until the system goes down.
 	rebooting bool
 	nomadErr  string // last error reading the Nomad status, to log changes only
+
+	ssh      sshPaths
+	sshState *SSH // state of the last applied SSH settings
 }
 
 func main() {
@@ -128,6 +134,7 @@ func main() {
 		drainDeadline: time.Hour,
 		upgradeArgs:   strings.Fields(os.Getenv("FLEET_UPGRADE_ARGS")),
 		drainMarker:   envOr("FLEET_STATE_DIR", "/data/fleet-client") + "/drained",
+		ssh:           defaultSSHPaths,
 		state:         "idle",
 	}
 	if c.manager == "" {
@@ -189,13 +196,25 @@ func (c *client) run() time.Duration {
 		interval = 5 * time.Minute
 	}
 
+	// SSH settings do not interrupt workloads, so they are applied right
+	// away and before a possible reboot.
+	ssh, recheck, sshErr := c.applySSH(d.SSH, rep.BootTime)
+	if recheck > 0 && recheck < interval {
+		interval = recheck
+	}
+	sshChanged := !reflect.DeepEqual(ssh, c.sshState)
+	c.sshState, rep.SSH = ssh, ssh
+
 	state, msg := c.act(d, rep)
 	if resumeErr != nil && state == "idle" {
 		// Nomad is usually not up yet right after a boot: retry soon.
 		state, msg = "error", "enable Nomad scheduling eligibility: "+resumeErr.Error()
 		interval = min(interval, time.Minute)
 	}
-	if state != c.state || msg != c.msg {
+	if sshErr != nil && state == "idle" {
+		state, msg = "error", "ssh: "+sshErr.Error()
+	}
+	if state != c.state || msg != c.msg || sshChanged {
 		if msg != "" {
 			log.Printf("%s: %s", state, msg)
 		}
@@ -398,6 +417,7 @@ func (c *client) collect() *Report {
 		BootTime:      bootTime(),
 		State:         c.state,
 		Message:       c.msg,
+		SSH:           c.sshState,
 	}
 	st, err := nomadStatus()
 	msg := ""

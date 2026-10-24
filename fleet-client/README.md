@@ -36,6 +36,24 @@ On every check interval (from BurFleet, 5 minutes by default) it:
      while the other Nomad nodes of the group are up, eligible and not
      draining. If the upgrade fails the node is made eligible again,
      reports `error` and retries after an hour.
+4. Applies the `ssh` settings right away, in any upgrade policy and without
+   a maintenance lock:
+   * `authorized_keys` go to a block between `# BEGIN burmilla-fleet-manager`
+     and `# END burmilla-fleet-manager` in `/root/.ssh/authorized_keys`.
+     Other keys in the file are not touched.
+   * `password_authentication` is written to
+     `/etc/ssh/sshd_config.d/50-burmilla-fleet.conf` (with `false` also
+     `KbdInteractiveAuthentication no`), checked with `sshd -t` and sshd is
+     reloaded; open sessions stay. The effective value (`sshd -T`) is
+     reported back. Console logins with the root password keep working.
+   * `disable_after_boot` (e.g. `10m`): once the node has been up that long
+     and no SSH connection is established, sshd is stopped
+     (`ssh.socket` and `ssh.service`). While a session is open it checks
+     again every minute. sshd starts again after every reboot; `0` starts
+     it right away, unset leaves it as it is.
+
+   `/root` and `/etc/ssh` are persistent, so the settings survive upgrades.
+   Make sure the keys work before disabling password logins.
 
 Requires BurFleet with Nomad QEMU node support.
 
@@ -105,8 +123,17 @@ swarms:
 ```
 
 The BurmillaOS settings of `defaults` (`os_image`, `os_version`) and all
-`docker_version` settings do not apply to Nomad QEMU nodes. SSH settings
-are not managed by this client.
+`docker_version` settings do not apply to Nomad QEMU nodes. `ssh` settings
+are inherited like on BurmillaOS (`defaults` included) and apply to root:
+
+```yaml
+swarms:
+  nomad-qemu:
+    ssh:
+      authorized_keys:
+        - ssh-ed25519 AAAA... alice@example.com
+      password_authentication: false
+```
 
 Run fleet-client on all Nomad client nodes of the group: a node that stops
 reporting, reports an error or is not eligible blocks maintenance of the
