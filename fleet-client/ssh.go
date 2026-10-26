@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 )
 
 // SSH is the SSH part of the desired state and of the report. A nil field
@@ -15,11 +14,6 @@ import (
 type SSH struct {
 	AuthorizedKeys         []string `json:"authorized_keys"`
 	PasswordAuthentication *bool    `json:"password_authentication"`
-	// DisableAfterBoot (Go duration) stops sshd once the node has been up
-	// this long and no SSH session is active. "0s" enables it again.
-	DisableAfterBoot string `json:"disable_after_boot,omitempty"`
-	// Disabled is reported back: sshd is stopped.
-	Disabled bool `json:"disabled,omitempty"`
 }
 
 const (
@@ -44,12 +38,9 @@ var defaultSSHPaths = sshPaths{
 }
 
 // applySSH applies the desired SSH settings and returns the resulting
-// state for the report, and how soon to check again while waiting for
-// disable_after_boot.
-func (c *client) applySSH(d SSH, boot time.Time) (*SSH, time.Duration, error) {
+// state for the report.
+func (c *client) applySSH(d SSH) (*SSH, error) {
 	st := &SSH{}
-	disabled, recheck, gateErr := sshGate(d.DisableAfterBoot, boot, time.Now())
-	st.Disabled = disabled
 	var errs []string
 	if d.AuthorizedKeys != nil {
 		keys, err := applyKeys(c.ssh.authorizedKeys, d.AuthorizedKeys)
@@ -63,13 +54,10 @@ func (c *client) applySSH(d SSH, boot time.Time) (*SSH, time.Duration, error) {
 		errs = append(errs, err.Error())
 	}
 	st.PasswordAuthentication = pass
-	if gateErr != nil {
-		errs = append(errs, gateErr.Error())
-	}
 	if len(errs) > 0 {
-		return st, recheck, fmt.Errorf("%s", strings.Join(errs, "; "))
+		return st, fmt.Errorf("%s", strings.Join(errs, "; "))
 	}
-	return st, recheck, nil
+	return st, nil
 }
 
 // applyPasswordAuthentication writes the sshd drop-in when the setting is
@@ -97,7 +85,7 @@ func applyPasswordAuthentication(dropIn string, want *bool) (*bool, error) {
 				return nil, fmt.Errorf("sshd rejects the configuration: %v", err)
 			}
 			// Reloads a running sshd; when it is not running (socket
-			// activation, disabled) it reads the file when it starts.
+			// activation) it reads the file when it starts.
 			if err := run("systemctl", "try-reload-or-restart", "ssh.service"); err != nil {
 				return nil, fmt.Errorf("reload sshd: %v", err)
 			}
@@ -132,68 +120,6 @@ func passwordAuthentication(out string) (bool, bool) {
 		}
 	}
 	return false, false
-}
-
-// sshGate stops or starts sshd for disable_after_boot. Unset is not
-// managed, 0 enables sshd. It returns whether sshd is disabled and, while
-// it waits for the deadline or for open sessions to end, how soon to check
-// again. sshd starts again on every boot.
-func sshGate(after string, boot, now time.Time) (bool, time.Duration, error) {
-	disabled := !sshdActive()
-	if after == "" {
-		return disabled, 0, nil
-	}
-	d, _ := time.ParseDuration(after)
-	if d == 0 {
-		if disabled {
-			if err := run("systemctl", "start", "ssh.socket"); err != nil {
-				return true, 0, fmt.Errorf("enable sshd: %v", err)
-			}
-			log.Print("sshd enabled")
-		}
-		return false, 0, nil
-	}
-	if disabled || boot.IsZero() {
-		return disabled, 0, nil
-	}
-	if left := boot.Add(d).Sub(now); left > 0 {
-		return false, max(left, 10*time.Second), nil
-	}
-	if n := sshSessions(); n != 0 {
-		// Try again when the sessions may have ended.
-		return false, time.Minute, nil
-	}
-	// Stopping the listener keeps sessions which have just been opened.
-	if err := run("systemctl", "stop", "ssh.socket", "ssh.service"); err != nil {
-		return false, 0, fmt.Errorf("disable sshd: %v", err)
-	}
-	log.Printf("sshd disabled %s after boot", d)
-	return true, 0, nil
-}
-
-// sshdActive reports whether sshd accepts connections, either through
-// socket activation or as a running service.
-func sshdActive() bool {
-	for _, unit := range []string{"ssh.socket", "ssh.service"} {
-		if out, _ := capture("systemctl", "is-active", unit); out == "active" {
-			return true
-		}
-	}
-	return false
-}
-
-// sshSessions counts established connections to the SSH port, -1 when
-// they cannot be read.
-func sshSessions() int {
-	out, err := capture("ss", "-Htn", "state", "established", "( sport = :22 )")
-	if err != nil {
-		log.Printf("cannot list SSH sessions: %v", err)
-		return -1
-	}
-	if out == "" {
-		return 0
-	}
-	return len(strings.Split(out, "\n"))
 }
 
 // applyKeys writes the managed block of an authorized_keys file and

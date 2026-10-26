@@ -200,10 +200,7 @@ func (c *client) run() time.Duration {
 
 	// SSH settings do not interrupt workloads, so they are applied right
 	// away and before a possible reboot.
-	ssh, recheck, sshErr := c.applySSH(d.SSH, rep.BootTime)
-	if recheck > 0 && recheck < interval {
-		interval = recheck
-	}
+	ssh, sshErr := c.applySSH(d.SSH)
 	sshChanged := !reflect.DeepEqual(ssh, c.sshState)
 	c.sshState, rep.SSH = ssh, ssh
 

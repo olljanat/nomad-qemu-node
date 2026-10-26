@@ -49,11 +49,6 @@ On every check interval (from BurFleet, 5 minutes by default) it:
      `KbdInteractiveAuthentication no`), checked with `sshd -t` and sshd is
      reloaded; open sessions stay. The effective value (`sshd -T`) is
      reported back. Console logins with the root password keep working.
-   * `disable_after_boot` (e.g. `10m`): once the node has been up that long
-     and no SSH connection is established, sshd is stopped
-     (`ssh.socket` and `ssh.service`). While a session is open it checks
-     again every minute. sshd starts again after every reboot; `0` starts
-     it right away, unset leaves it as it is.
 
    `/root` and `/etc/ssh` are persistent, so the settings survive upgrades.
    Make sure the keys work before disabling password logins.
