@@ -62,6 +62,7 @@ type Desired struct {
 	MaintenanceWindowNext   string   `json:"maintenance_window_next_start"`
 	MaintenanceRequired     bool     `json:"maintenance_required"`
 	MaintenanceReasons      []string `json:"maintenance_reasons"`
+	RestartAllowed          bool     `json:"restart_allowed"`
 	SSH                     SSH      `json:"ssh"`
 }
 
@@ -246,7 +247,12 @@ func (c *client) act(d *Desired, rep *Report) (string, string) {
 	}
 	pending := strings.Join(reasons, ", ")
 	if d.UpgradePolicy != "auto" {
-		return "waiting", "pending " + pending + " (upgrade_policy " + d.UpgradePolicy + ")"
+		// Scheduled restarts can be allowed without upgrades
+		// (maintenance_window and max_uptime are configured).
+		if !d.RestartAllowed || !contains(reasons, reasonRestart) {
+			return "waiting", "pending " + pending + " (upgrade_policy " + d.UpgradePolicy + ")"
+		}
+		reasons, pending = []string{reasonRestart}, reasonRestart
 	}
 	if !d.MaintenanceWindowActive {
 		return "waiting", "pending " + pending + ", next maintenance window " + d.MaintenanceWindowNext

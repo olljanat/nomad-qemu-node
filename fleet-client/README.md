@@ -39,6 +39,11 @@ On every check interval (from BurFleet, 5 minutes by default) it:
      while the other Nomad nodes of the group are up, eligible and not
      draining. If the upgrade fails the node is made eligible again,
      reports `error` and retries after an hour.
+
+   With `none` and `download`, scheduled restarts still run the same way
+   (lock, drain, reboot) when BurFleet allows them (`maintenance_window`
+   and `max_uptime` configured, BurFleet v1.5.0 or later). OS upgrades
+   stay pending.
 4. Applies the `ssh` settings right away, in any upgrade policy and without
    a maintenance lock:
    * `authorized_keys` go to a block between `# BEGIN burmilla-fleet-manager`
