@@ -99,6 +99,8 @@ func TestActWithoutLock(t *testing.T) {
 		{Desired{UpgradePolicy: "auto", MaintenanceRequired: true, MaintenanceReasons: []string{"docker_upgrade"}}, "idle"},
 		{Desired{UpgradePolicy: "none", MaintenanceRequired: true, MaintenanceReasons: []string{"os_upgrade"}}, "waiting"},
 		{Desired{UpgradePolicy: "download", MaintenanceRequired: true, MaintenanceReasons: []string{"os_upgrade"}}, "waiting"},
+		{Desired{UpgradePolicy: "none", RestartAllowed: true, MaintenanceRequired: true, MaintenanceReasons: []string{"os_upgrade"}}, "waiting"},
+		{Desired{UpgradePolicy: "none", RestartAllowed: true, MaintenanceRequired: true, MaintenanceReasons: []string{"restart"}, MaintenanceWindowNext: "2026-10-24T23:00:00Z"}, "waiting"},
 		{Desired{UpgradePolicy: "auto", MaintenanceRequired: true, MaintenanceReasons: []string{"restart"}, MaintenanceWindowNext: "2026-10-24T23:00:00Z"}, "waiting"},
 	}
 	for i, tc := range cases {
@@ -113,6 +115,11 @@ func TestActWithoutLock(t *testing.T) {
 	// Inside the window a refused lock keeps the node waiting.
 	d := Desired{UpgradePolicy: "auto", MaintenanceRequired: true, MaintenanceWindowActive: true, MaintenanceReasons: []string{"os_upgrade"}}
 	if state, msg := c.act(&d, &Report{}); state != "waiting" || msg != "pending os_upgrade, maintenance lock refused: no" {
+		t.Fatalf("got %s: %s", state, msg)
+	}
+	// Restarts allowed without upgrade_policy auto leave upgrades pending.
+	d = Desired{UpgradePolicy: "none", RestartAllowed: true, MaintenanceRequired: true, MaintenanceWindowActive: true, MaintenanceReasons: []string{"os_upgrade", "restart"}}
+	if state, msg := c.act(&d, &Report{}); state != "waiting" || msg != "pending restart, maintenance lock refused: no" {
 		t.Fatalf("got %s: %s", state, msg)
 	}
 }
