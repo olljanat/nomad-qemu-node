@@ -125,7 +125,17 @@ func passwordAuthentication(out string) (bool, bool) {
 // applyKeys writes the managed block of an authorized_keys file and
 // returns the keys now in it. Keys outside of the block are kept.
 func applyKeys(file string, keys []string) ([]string, error) {
-	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+	dir := filepath.Dir(file)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	// sshd (StrictModes) ignores the keys when .ssh is not owned by the
+	// user or is writable by others. Nodes installed from older ISOs have
+	// it owned by uid 1001 of the image build.
+	if err := os.Lchown(dir, os.Getuid(), os.Getgid()); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
 		return nil, err
 	}
 	old, err := os.ReadFile(file)

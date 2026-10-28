@@ -48,6 +48,7 @@ On every check interval (from BurFleet, 5 minutes by default) it:
    a maintenance lock:
    * `authorized_keys` go to a block between `# BEGIN burmilla-fleet-manager`
      and `# END burmilla-fleet-manager` in `/root/.ssh/authorized_keys`.
+     `/root/.ssh` is made `root:root` 0700, otherwise sshd ignores the keys.
      Other keys in the file are not touched.
    * `password_authentication` is written to
      `/etc/ssh/sshd_config.d/50-burmilla-fleet.conf` (with `false` also

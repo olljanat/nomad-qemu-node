@@ -48,6 +48,12 @@ func TestApplyKeys(t *testing.T) {
 	if fi, _ := os.Stat(filepath.Dir(file)); fi.Mode().Perm() != 0o700 {
 		t.Fatalf(".ssh mode %v", fi.Mode())
 	}
+	// A wrong mode of an existing .ssh is fixed.
+	os.Chmod(filepath.Dir(file), 0o775)
+	applyKeys(file, []string{keyA})
+	if fi, _ := os.Stat(filepath.Dir(file)); fi.Mode().Perm() != 0o700 {
+		t.Fatalf(".ssh mode not fixed: %v", fi.Mode())
+	}
 	os.WriteFile(file, []byte(own+"\n"+keysBegin+"\n"+keyA+"\n"+keysEnd+"\n"), 0o600)
 	if keys, _ = applyKeys(file, []string{keyB}); !slices.Equal(keys, []string{keyB}) {
 		t.Fatalf("%q", keys)
