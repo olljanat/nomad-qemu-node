@@ -64,8 +64,10 @@ jobs:
     - name: Create ISO
       run: |
         docker create --name export ghcr.io/${{ github.repository_owner }}/nomad-qemu-node:latest
-        mkdir rootfs
-        docker export export | tar -x -C rootfs
+        # Extract as root, a non-root tar makes the runner user (uid 1001)
+        # the owner of every file, which breaks e.g. sshd StrictModes
+        sudo install -d -m 0755 -o root -g root rootfs
+        docker export export | sudo tar -x --numeric-owner -C rootfs
         docker rm export
         sudo ./elemental --debug build-iso --bootloader-in-rootfs --extra-cmdline "" dir:rootfs
         sudo mv elemental.iso nomad-qemu-node.iso
