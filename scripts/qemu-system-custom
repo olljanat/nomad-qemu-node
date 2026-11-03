@@ -14,6 +14,7 @@ EXTRA_ARGS=()
 IMAGE_RESIZE=""
 IMAGE_URL=""
 IMAGES_DIR="/data/images"
+NUMACTL=()
 VGA_DEVICE="VGA"
 VLAN=""
 
@@ -197,6 +198,30 @@ while [[ $# -gt 0 ]]; do
       CPU_COUNT="$2"
       HOST_CPU_COUNT=$(nproc --all)
       EXTRA_ARGS+=("-smp" "${2},maxcpus=${HOST_CPU_COUNT}")
+      shift 2
+      ;;
+    -numa-count)
+      NUMA_COUNT="$2"
+      if ! [[ "$NUMA_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+        echo "Error: -numa-count requires a positive integer" >&2
+        exit 1
+      fi
+      if [[ -z "${VM_MIN_MEM}" || -z "${CPU_COUNT}" ]]; then
+        echo "Error: VM_MIN_MEM and CPU_COUNT environment variables must be set" >&2
+        exit 1
+      fi
+      # Memory per NUMA node (in MiB)
+      NUMA_MEM=$(( VM_MIN_MEM / NUMA_COUNT ))
+      # CPUs per NUMA node
+      CPUS_PER_NODE=$(( CPU_COUNT / NUMA_COUNT ))
+      for ((i=0; i<NUMA_COUNT; i++)); do
+        EXTRA_ARGS+=("-object" "memory-backend-ram,size=${NUMA_MEM}M,id=m${i}")
+        CPU_START=$(( i * CPUS_PER_NODE ))
+        CPU_END=$(( CPU_START + CPUS_PER_NODE - 1 ))
+        EXTRA_ARGS+=("-numa" "node,nodeid=${i},cpus=${CPU_START}-${CPU_END},memdev=m${i}")
+      done
+      # Forcing Host NUMA Binding
+      NUMACTL+=("numactl" "--cpunodebind=${CPU_START}-${CPU_END}" "--membind=${CPU_START}-${CPU_END}")
       shift 2
       ;;
     --version)
