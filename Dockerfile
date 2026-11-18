@@ -46,7 +46,6 @@ RUN apt-get update \
     netplan.io \
     net-tools \
     networkd-dispatcher \
-    numactl \
     openssh-client \
     openssh-server \
     parted \
