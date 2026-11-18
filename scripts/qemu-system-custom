@@ -149,7 +149,16 @@ while [[ $# -gt 0 ]]; do
         esac
       done
 
+      TASK_DIR="/data/nomad/alloc/$NOMAD_ALLOC_ID/$NOMAD_TASK_NAME"
+
       if [[ "$id_val" == "image0" ]]; then
+        if [[ "$file_val" == "$TASK_DIR/"* ]]; then
+          url_candidate="${file_val#"$TASK_DIR"/}"
+          if [[ "$url_candidate" =~ ^.*/([A-Za-z][A-Za-z0-9+.-]*):/{1,2}([^/].*)$ ]]; then
+            file_val="${BASH_REMATCH[1]}://${BASH_REMATCH[2]}"
+          fi
+        fi
+
         # Require file to be a URL
         if [[ -z "$file_val" ]]; then
           echo "Error: -drive with id=image0 must include a 'file=' URL." >&2
@@ -228,7 +237,6 @@ if [[ -z "$VLAN" ]]; then
 fi
 HOST_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
 EXTRA_ARGS+=("-m" "size=${VM_MIN_MEM}M,slots=256,maxmem=${HOST_MEM}k")
-TASK_DIR="/data/nomad/alloc/$NOMAD_ALLOC_ID/$NOMAD_TASK_NAME"
 case $BOOT_TYPE in
   SECURE_BOOT)    BOOT_TYPE_ARGS=("-drive" "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.secboot.fd" "-drive" "if=pflash,format=raw,file=${TASK_DIR}/OVMF_VARS_4M.ms.fd") ;;
   UEFI)           BOOT_TYPE_ARGS=("-bios" "/usr/share/ovmf/OVMF.fd") ;;
